@@ -1,8 +1,10 @@
 (() => {
   'use strict';
-  const defaults = { hideNotificationCount: true, hideSidebarRecommendations: true, hideLeftSidebar: false };
+  const defaults = { showFollowerCount: true, showProfileBio: true, hideNotificationCount: true, hideSidebarRecommendations: true, hideLeftSidebar: false };
   const settings = { ...defaults };
   const attributes = {
+    showFollowerCount: 'data-xfc-show-follower-count',
+    showProfileBio: 'data-xfc-show-profile-bio',
     hideNotificationCount: 'data-xfc-hide-notification-count',
     hideSidebarRecommendations: 'data-xfc-hide-sidebar-recommendations',
     hideLeftSidebar: 'data-xfc-hide-left-sidebar'
@@ -12,6 +14,7 @@
     for (const [key, attribute] of Object.entries(attributes)) {
       document.documentElement?.setAttribute(attribute, String(settings[key]));
     }
+    window.dispatchEvent(new Event('xpandmax:settings'));
   };
   apply();
   if (!document.documentElement) {

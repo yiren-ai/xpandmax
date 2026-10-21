@@ -99,6 +99,18 @@ try {
     await page.screenshot({ path: path.join(output, 'desktop.png') });
     const popup = await context.newPage();
     await popup.goto(`chrome-extension://${id}/popup.html`);
+    await page.locator('[data-testid="UserCell"] [data-xfc-badge]').hover();
+    await page.locator('[data-xfc-preview-line="summary"]').waitFor();
+    await page.locator('[data-xfc-preview-line="bio"]').waitFor();
+    await popup.locator('#show-profile-bio').uncheck();
+    await page.waitForFunction(() => !document.querySelector('[data-xfc-inline-bio]'));
+    assert.match(await page.locator('[data-xfc-preview-line="summary"]').textContent(), /位粉丝/);
+    assert.equal(await page.locator('[data-xfc-preview-line="bio"]').count(), 0);
+    await popup.locator('#show-follower-count').uncheck();
+    await page.waitForFunction(() => !document.querySelector('[data-xfc-count-toggle]'));
+    await popup.locator('#show-follower-count').check();
+    await popup.locator('#show-profile-bio').check();
+    await page.waitForFunction(() => document.querySelector('[data-xfc-inline-bio]') && getComputedStyle(document.querySelector('[data-xfc-count-toggle]')).display !== 'none');
     await popup.locator('#show-tweet-velocity').uncheck();
     await page.waitForFunction(() => !document.querySelector('[data-xfc-velocity]'));
     await popup.locator('#show-tweet-velocity').check();
@@ -109,7 +121,7 @@ try {
     await page.waitForFunction(() => [...document.querySelectorAll('[data-xfc-velocity]')].every(n => n.dataset.tier === 'viral'));
     await popup.reload();
     assert.equal(await popup.locator('#velocity-viral').inputValue(), '500');
-    check('real-popup-storage-change-and-reload', 'Toggle and thresholds propagate through chrome.storage and persist after popup reload');
+    check('real-popup-storage-change-and-reload', 'Follower, bio and velocity toggles propagate through chrome.storage; thresholds persist after popup reload');
     await popup.screenshot({ path: path.join(output, 'popup.png') });
     const second = await context.newPage(); await second.goto(url);
     await second.waitForFunction(() => document.querySelectorAll('[data-xfc-velocity][data-tier="viral"]').length === 2);

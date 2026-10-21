@@ -19,8 +19,20 @@ function setupSettings(saved = {}, deferred = false) {
     onChanged: { addListener(callback) { listener = callback; } }
   } };
   w.eval(settingsScript);
-  return { dom, w, change(value, area = 'local') { listener({ hideNotificationCount: { newValue: value } }, area); }, finishLoad: () => finishLoad() };
+  return { dom, w, change(value, area = 'local', key = 'hideNotificationCount') { listener({ [key]: { newValue: value } }, area); }, finishLoad: () => finishLoad() };
 }
+
+test('粉丝数和简介默认显示，保存的开关会立即更新页面状态', () => {
+  const { dom, w, change } = setupSettings();
+  try {
+    assert.equal(w.document.documentElement.dataset.xfcShowFollowerCount, 'true');
+    assert.equal(w.document.documentElement.dataset.xfcShowProfileBio, 'true');
+    change(false, 'local', 'showFollowerCount');
+    change(false, 'local', 'showProfileBio');
+    assert.equal(w.document.documentElement.dataset.xfcShowFollowerCount, 'false');
+    assert.equal(w.document.documentElement.dataset.xfcShowProfileBio, 'false');
+  } finally { dom.window.close(); }
+});
 
 test('默认只隐藏通知数字，铃铛、通知入口、其他角标和通知内容保留', () => {
   const { dom, w } = setupSettings();
@@ -82,6 +94,8 @@ test('插件设置只保存布尔开关，保存失败时恢复原状态', () =>
     const toggle = w.document.querySelector('input');
     assert.equal(toggle.disabled, false);
     assert.equal(toggle.checked, true);
+    assert.equal(w.document.querySelector('#show-follower-count').checked, true);
+    assert.equal(w.document.querySelector('#show-profile-bio').checked, true);
     toggle.checked = false;
     toggle.dispatchEvent(new w.Event('change'));
     assert.equal(JSON.stringify(writes[0]), '{"hideNotificationCount":false}');
@@ -91,5 +105,11 @@ test('插件设置只保存布尔开关，保存失败时恢复原状态', () =>
     assert.equal(toggle.checked, false);
     assert.match(w.document.querySelector('#status').textContent, /未保存/);
     assert.equal(toggle.disabled, false);
+    fail = false;
+    const bio = w.document.querySelector('#show-profile-bio');
+    bio.checked = false;
+    bio.dispatchEvent(new w.Event('change'));
+    assert.equal(JSON.stringify(writes.at(-1)), '{"showProfileBio":false}');
+    assert.match(w.document.querySelector('#status').textContent, /已关闭简介/);
   } finally { dom.window.close(); }
 });

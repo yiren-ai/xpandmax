@@ -45,6 +45,7 @@
     previewAnchor = anchor;
     const handle = anchor.dataset.xfcHandle;
     const profile = profileData(handle);
+    const showProfileBio = document.documentElement.dataset.xfcShowProfileBio !== 'false';
     preview.replaceChildren();
     const addLine = (tag, text, kind) => {
       const line = document.createElement(tag);
@@ -56,9 +57,9 @@
     const summary = [];
     if (profile.count !== undefined) summary.push(`${profile.count.toLocaleString('zh-CN')} 位粉丝`);
     if (summary.length) addLine('div', summary.join(' · '), 'summary');
-    if (profile.bio?.trim()) addLine('p', profile.bio.trim(), 'bio');
-    if (profile.location?.trim()) addLine('p', profile.location.trim(), 'location');
-    if (!profile.bio?.trim() && !profile.location?.trim()) {
+    if (showProfileBio && profile.bio?.trim()) addLine('p', profile.bio.trim(), 'bio');
+    if (showProfileBio && profile.location?.trim()) addLine('p', profile.location.trim(), 'location');
+    if (showProfileBio && !profile.bio?.trim() && !profile.location?.trim()) {
       addLine('p', profile.bio !== undefined && profile.location !== undefined
         ? '这个账号尚未填写简介和所在地。' : '页面尚未返回简介或所在地。', 'empty');
     }
@@ -135,6 +136,8 @@
   function render() {
     scheduled = false;
     const theme = pageTheme();
+    const showFollowerCount = document.documentElement.dataset.xfcShowFollowerCount !== 'false';
+    const showProfileBio = document.documentElement.dataset.xfcShowProfileBio !== 'false';
     const targets = [];
     for (const cell of document.querySelectorAll('[data-testid="UserCell"]')) {
       const profile = profileLink(cell);
@@ -152,8 +155,8 @@
     for (const profile of targets) {
       const record = profileData(profile.handle);
       const known = record.count !== undefined;
-      const bio = record.bio?.trim();
-      const location = record.location?.trim();
+      const bio = showProfileBio ? record.bio?.trim() : '';
+      const location = showProfileBio ? record.location?.trim() : '';
       const inline = profile.mode === 'append' && !!profile.root.closest('article');
       if (inline) {
         if (!known && !bio && !location) continue;
@@ -166,20 +169,25 @@
         details.dataset.xfcTheme = theme;
         details.dataset.xfcLayout = 'compact';
         const inlineRow = part(details, 'data-xfc-inline-row', 'div');
-        const countToggle = part(inlineRow, 'data-xfc-count-toggle', 'button');
-        countToggle.setAttribute('data-xfc-toggle', '');
-        countToggle.type = 'button';
+        let countToggle = inlineRow.querySelector('[data-xfc-count-toggle]');
+        if (!showFollowerCount) countToggle?.remove();
+        else {
+          countToggle = countToggle || part(inlineRow, 'data-xfc-count-toggle', 'button');
+          if (inlineRow.firstElementChild !== countToggle) inlineRow.prepend(countToggle);
+          countToggle.setAttribute('data-xfc-toggle', '');
+          countToggle.type = 'button';
+          const badge = part(countToggle, BADGE);
+          badge.dataset.xfcHandle = profile.handle;
+          badge.dataset.xfcState = known ? 'ready' : 'pending';
+          badge.dataset.xfcTheme = theme;
+          setText(part(badge, 'data-xfc-count'), known ? formatCount(record.count) : '—');
+          setText(part(badge, 'data-xfc-count-label'), '粉丝');
+          badge.title = known ? `${record.count.toLocaleString('zh-CN')} 位粉丝` : '粉丝数暂缺';
+          liveBadges.add(badge);
+        }
         const toggle = part(inlineRow, 'data-xfc-summary-toggle', 'button');
         toggle.setAttribute('data-xfc-toggle', '');
         toggle.type = 'button';
-        const badge = part(countToggle, BADGE);
-        badge.dataset.xfcHandle = profile.handle;
-        badge.dataset.xfcState = known ? 'ready' : 'pending';
-        badge.dataset.xfcTheme = theme;
-        setText(part(badge, 'data-xfc-count'), known ? formatCount(record.count) : '—');
-        setText(part(badge, 'data-xfc-count-label'), '粉丝');
-        badge.title = known ? `${record.count.toLocaleString('zh-CN')} 位粉丝` : '粉丝数暂缺';
-        liveBadges.add(badge);
         const rect = details.getBoundingClientRect();
         const translation = bio && window.xpandmaxTranslations?.[rect.bottom >= 0 && rect.top < innerHeight + 300 ? 'request' : 'inspect'](bio);
         const translated = translation?.state === 'ready';
@@ -192,8 +200,10 @@
         details.dataset.xfcOpen = String(open);
         toggle.disabled = !hasDetails;
         toggle.setAttribute('aria-expanded', String(open));
-        countToggle.disabled = !hasDetails;
-        countToggle.setAttribute('aria-expanded', String(open));
+        if (countToggle) {
+          countToggle.disabled = !hasDetails;
+          countToggle.setAttribute('aria-expanded', String(open));
+        }
         summary.hidden = open || !displayedBio;
         const closeLabel = part(toggle, 'data-xfc-close-label');
         setText(closeLabel, '收起');
@@ -251,6 +261,7 @@
         liveHosts.add(profile.root);
         liveProfiles.add(details);
       } else {
+        if (!showFollowerCount) continue;
         const row = profile.mode === 'after' ? profile.anchor.parentElement : profile.anchor;
         let badge = [...row.children].find(child => child.hasAttribute(BADGE));
         if (badge && badge.dataset.xfcHandle !== profile.handle) { badge.remove(); badge = null; }
@@ -356,6 +367,7 @@
   }, true);
   window.addEventListener('xpandmax:translation', schedule);
   window.addEventListener('xpandmax:followstate', schedule);
+  window.addEventListener('xpandmax:settings', schedule);
   document.addEventListener('mouseover', event => {
     const anchor = previewTarget(event);
     if (anchor) showPreview(anchor);

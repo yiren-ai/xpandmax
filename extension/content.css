@@ -18,6 +18,15 @@
 [data-xfc-badge][data-xfc-state="pending"] { color: #82929e !important; }
 [data-xfc-badge]:focus-visible, [data-xfc-toggle]:focus-visible { outline: 2px solid #1d9bf0 !important; outline-offset: 2px !important; }
 [data-xfc-count], [data-xfc-count-label] { font: inherit !important; color: inherit !important; }
+[data-xfc-show-follower-count="false"] [data-xfc-count-toggle],
+[data-xfc-show-follower-count="false"] [data-xfc-badge],
+[data-xfc-show-profile-bio="false"] [data-xfc-summary-toggle],
+[data-xfc-show-profile-bio="false"] [data-xfc-expanded] { display: none !important; }
+[data-xfc-show-follower-count="false"][data-xfc-show-profile-bio="false"] [data-xfc-inline-profile]:not(:has([data-xfc-follow])) { display: none !important; }
+[data-xfc-show-follower-count="false"][data-xfc-show-profile-bio="false"] [data-testid="Tweet-User-Avatar"]:has(~ div [data-xfc-inline-profile]:not(:has([data-xfc-follow]))) {
+  align-self: center !important;
+  margin-top: 0 !important;
+}
 [data-xfc-inline-host] { flex-wrap: wrap !important; min-width: 0 !important; }
 [data-testid="Tweet-User-Avatar"]:has(~ div [data-xfc-inline-profile]) { align-self: flex-start !important; margin-top: 2px !important; }
 [data-xfc-inline-profile] {

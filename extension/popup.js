@@ -1,6 +1,8 @@
 (() => {
   'use strict';
   const controls = [
+    { key: 'showFollowerCount', id: 'show-follower-count', label: '粉丝数', defaultValue: true },
+    { key: 'showProfileBio', id: 'show-profile-bio', label: '简介', defaultValue: true },
     { key: 'showTweetVelocity', id: 'show-tweet-velocity', label: '帖子流速', defaultValue: true },
     { key: 'hideNotificationCount', id: 'hide-notification-count', label: '通知数字', defaultValue: true },
     { key: 'hideLeftSidebar', id: 'hide-left-sidebar', label: '左侧导航', defaultValue: false },
@@ -41,7 +43,7 @@
             status.textContent = '设置未保存，请重试';
           } else {
             saved = next;
-            status.textContent = key === 'showTweetVelocity' ? `${saved ? '已显示' : '已关闭'}帖子流速` : `${saved ? '已隐藏' : '已恢复显示'}${label}`;
+            status.textContent = key.startsWith('show') ? `${saved ? '已显示' : '已关闭'}${label}` : `${saved ? '已隐藏' : '已恢复显示'}${label}`;
           }
           toggle.disabled = false;
         });

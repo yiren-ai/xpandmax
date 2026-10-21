@@ -6,7 +6,7 @@
 
 **MIT 开源，欢迎贡献。** [源代码](https://github.com/yiren-ai/xpandmax) · [提交问题](https://github.com/yiren-ai/xpandmax/issues) · [贡献指南](CONTRIBUTING.md) · [Pull Requests](https://github.com/yiren-ai/xpandmax/pulls)
 
-在作者名下显示一行轻量注释：蓝色粉丝数和一小段中文简介，统一 12px、400 常规字重。点击展开完整简介、所在地和原文切换，同时最多展开一位作者。支持首页、回复、引用帖、搜索与账号列表。
+在作者名下显示一行轻量注释：蓝色粉丝数和一小段中文简介，统一 12px、400 常规字重。点击展开完整简介、所在地和原文切换，同时最多展开一位作者。支持首页、回复、引用帖、搜索与账号列表；粉丝数和简介可在插件设置中分别关闭。
 
 默认无需 API Key，无额外账号查询。数据来自当前页面已经收到的 X 响应；可选接入自己的翻译 API。
 

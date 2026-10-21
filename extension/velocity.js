@@ -40,7 +40,7 @@
   const APPROX = '≈';
   function formatRate(rate) {
     if (!Number.isFinite(rate) || rate < 0) return '—';
-    if (rate < 1000) return String(Math.round(rate));
+    if (rate < 1000) return Math.round(rate).toLocaleString('zh-CN');
     if (rate < 10000) return (Math.round(rate / 10) * 10).toLocaleString('zh-CN');
     const wan = rate / 10000;
     const text = wan >= 100 ? Math.round(wan).toLocaleString('zh-CN') : wan.toFixed(1).replace(/\.0$/, '');
@@ -125,11 +125,16 @@
     line.setAttribute('data-xfc-velocity-line', '');
     return { node: line, mode: 'append' };
   }
-  function findBadge(author, id) {
-    const inside = [...author.querySelectorAll('[data-xfc-velocity]')]
-      .find(node => node.closest('[data-testid="User-Name"]') === author);
-    if (inside) return inside;
-    return [...document.querySelectorAll('[data-xfc-velocity]')].find(node => node.dataset.xfcTweetId === id);
+  // 徽章始终挂在作者行内部，所以按作者行找，不跨行复用（同一个帖子在页面
+  // 里可能出现两次，按 id 找会把第一个徽章挪给第二处）。
+  function findBadge(author) {
+    return [...author.querySelectorAll('[data-xfc-velocity]')]
+      .find(node => node.closest('[data-testid="User-Name"]') === author) || null;
+  }
+  // 站内跳转后作者行可能被复用，锚点会从「时间后面」变成「账号后面」，
+  // 这时要把旧徽章挪过去，而不是留在原地。
+  function targetNode(anchor) {
+    return anchor.mode === 'append' ? anchor.node : anchor.node.parentElement || anchor.node;
   }
   function render() {
     scheduled = false;
@@ -140,10 +145,11 @@
       const id = tweetId(author);
       const record = tweets.get(id);
       if (!record || !record.valid) continue;
-      let badge = findBadge(author, id);
-      if (!badge) {
-        const anchor = metaAnchor(author);
-        if (!anchor) continue;
+      const anchor = metaAnchor(author);
+      if (!anchor) continue;
+      let badge = findBadge(author);
+      if (badge && badge.parentElement !== targetNode(anchor)) badge.remove();
+      if (!badge || !badge.isConnected) {
         badge = document.createElement('span');
         badge.setAttribute('data-xfc-velocity', '');
         badge.tabIndex = 0;

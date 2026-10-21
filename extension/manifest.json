@@ -40,7 +40,8 @@
         "follow.js",
         "translation.js",
         "content.js",
-        "velocity.js"
+        "velocity.js",
+        "share.js"
       ],
       "css": [
         "content.css"

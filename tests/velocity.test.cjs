@@ -49,6 +49,27 @@ test('bridge extracts original and quoted tweet IDs, excludes promoted/missing/d
   } finally { t.dom.window.close(); }
 });
 
+test('bridge prepares Markdown text from intercepted note, links, media and author fields', async () => {
+  const t = bridgeSetup();
+  try {
+    const value = tweet('1');
+    value.core = { user_results: { result: { core: { name: '接口作者', screen_name: 'api_author' } } } };
+    Object.assign(value.legacy, {
+      full_text: '旧正文 https://t.co/link',
+      entities: { urls: [{ url: 'https://t.co/link', expanded_url: 'https://example.com/page' }] },
+      extended_entities: { media: [{ url: 'https://t.co/photo', type: 'photo', media_url_https: 'https://pbs.twimg.com/photo.jpg' }] }
+    });
+    value.note_tweet = { note_tweet_results: { result: { text: '长正文 https://t.co/link https://t.co/photo', entity_set: { urls: [{ url: 'https://t.co/link', expanded_url: 'https://example.com/page' }] } } } };
+    await t.receive(value);
+    const shared = t.messages.find(item => item.id === '1');
+    assert.equal(shared.text, '长正文 https://example.com/page ![](https://pbs.twimg.com/photo.jpg)');
+    assert.equal(shared.authorHandle, 'api_author');
+    assert.equal(shared.authorName, '接口作者');
+    assert.equal(shared.valid, true);
+    assert.equal(shared.bookmarks, 3);
+  } finally { t.dom.window.close(); }
+});
+
 test('six minute floor, zero views, missing interaction fields and bounded score remain explicit', async () => {
   const t = setup(author('1') + author('2'));
   try {
@@ -57,11 +78,61 @@ test('six minute floor, zero views, missing interaction fields and bounded score
     const badges = t.w.document.querySelectorAll('[data-xfc-velocity]');
     assert.equal(badges[0].textContent, '50,000/小时');
     assert.equal(badges[0].dataset.tier, 'viral');
-    assert.match(badges[0].title, /爆帖指数：100.0\/100/);
+    assert.match(badges[0].getAttribute('aria-label'), /爆帖指数：100.0\/100/);
     assert.equal(badges[1].textContent, '0/小时');
-    assert.match(badges[1].title, /收藏：—/);
-    assert.match(badges[1].title, /互动字段不完整/);
+    assert.match(badges[1].getAttribute('aria-label'), /收藏：—/);
+    assert.match(badges[1].getAttribute('aria-label'), /互动字段不完整/);
   } finally { t.dom.window.close(); }
+});
+
+test('velocity metrics use a fast custom X-style tooltip instead of the browser title', async () => {
+  const t = setup(author('1'));
+  try {
+    send(t.w, [record('1')]); await tick();
+    const badge = t.w.document.querySelector('[data-xfc-velocity]');
+    badge.getBoundingClientRect = () => ({ left: 40, right: 90, top: 46, bottom: 64, width: 50, height: 18 });
+    assert.equal(badge.hasAttribute('title'), false);
+    badge.dispatchEvent(new t.w.MouseEvent('mouseover', { bubbles: true, clientX: 120, clientY: 80 }));
+    await new Promise(resolve => setTimeout(resolve, 140));
+    const tooltip = t.w.document.querySelector('[data-xfc-velocity-tooltip]');
+    assert.equal(tooltip.getAttribute('role'), 'tooltip');
+    assert.match(tooltip.textContent, /浏览：10,000.*流速：(?:9,999|10,000)\/小时/s);
+    assert.equal(tooltip.style.left, '120px');
+    assert.equal(tooltip.style.top, '84px');
+    assert.equal(badge.getAttribute('aria-describedby'), tooltip.id);
+    badge.dispatchEvent(new t.w.MouseEvent('mouseout', { bubbles: true }));
+    assert.equal(t.w.document.querySelector('[data-xfc-velocity-tooltip]'), null);
+    badge.focus();
+    assert.ok(t.w.document.querySelector('[data-xfc-velocity-tooltip]'));
+    badge.blur();
+    assert.equal(t.w.document.querySelector('[data-xfc-velocity-tooltip]'), null);
+  } finally { t.dom.window.close(); }
+});
+
+test('timeline bookmark buttons show fresh positive counts without duplicating a native counter', async () => {
+  const article = count => `<article data-testid="tweet">${author('1')}<div role="group"><button data-testid="bookmark"><div>${count || ''}</div></button></div></article>`;
+  const t = setup(article());
+  try {
+    send(t.w, [record('1', { bookmarks: 12 })]); await tick();
+    assert.equal(t.w.document.querySelector('[data-xfc-bookmark-count]').textContent, '12');
+    send(t.w, [record('1', { bookmarks: 34 })]); await tick();
+    assert.equal(t.w.document.querySelectorAll('[data-xfc-bookmark-count]').length, 1);
+    assert.equal(t.w.document.querySelector('[data-xfc-bookmark-count]').textContent, '34');
+    send(t.w, [record('1', { valid: false, views: undefined, bookmarks: 21 })]); await tick();
+    assert.equal(t.w.document.querySelector('[data-xfc-bookmark-count]').textContent, '21');
+    t.change({ showBookmarkCount: false }); await tick();
+    assert.equal(t.w.document.querySelector('[data-xfc-bookmark-count]'), null);
+    t.change({ showBookmarkCount: true }); await tick();
+    assert.equal(t.w.document.querySelector('[data-xfc-bookmark-count]').textContent, '21');
+    send(t.w, [record('1', { bookmarks: 0 })]); await tick();
+    assert.equal(t.w.document.querySelector('[data-xfc-bookmark-count]'), null);
+  } finally { t.dom.window.close(); }
+
+  const native = setup(article('<span>8</span>'));
+  try {
+    send(native.w, [record('1', { bookmarks: 8 })]); await tick();
+    assert.equal(native.w.document.querySelector('[data-xfc-bookmark-count]'), null);
+  } finally { native.dom.window.close(); }
 });
 
 test('quote mapping, DOM reuse, settings changes and invalid timestamps remove stale badges', async () => {
@@ -152,6 +223,10 @@ test('detail permalink outside author row maps only the matching main author and
     send(t.w, [record('1', { quotedId: '2' }), record('2', { createdAt }), record('3')]);
     await tick();
     assert.equal(t.w.document.querySelectorAll('[data-xfc-velocity]').length, 2);
+    const detailBadge = t.w.document.querySelector('article > [data-testid="User-Name"] > :first-child > [data-xfc-velocity]');
+    assert.equal(detailBadge.textContent, '10,000/小时');
+    t.w.dispatchEvent(new t.w.PopStateEvent('popstate')); await tick();
+    assert.equal(t.w.document.querySelector('article > [data-testid="User-Name"] > :first-child > [data-xfc-velocity]'), detailBadge);
     assert.equal(t.w.document.querySelectorAll('article')[1].querySelector('[data-xfc-velocity]'), null);
     t.w.history.replaceState({}, '', '/someone_else/status/1');
     t.w.dispatchEvent(new t.w.PopStateEvent('popstate'));

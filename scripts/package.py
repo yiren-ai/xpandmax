@@ -8,7 +8,7 @@ import argparse
 ROOT = Path(__file__).resolve().parents[1]
 FILES = [
     "extension/manifest.json", "extension/bridge.js", "extension/content.js",
-    "extension/velocity.js", "extension/content.css", "extension/translation.js", "README.md", "LICENSE", "PRIVACY.md", "docs/preview.svg",
+    "extension/velocity.js", "extension/share.js", "extension/content.css", "extension/translation.js", "README.md", "LICENSE", "PRIVACY.md", "docs/preview.svg",
     "extension/translation-background.js", "extension/translation-options.html", "extension/translation-options.js", "extension/translation-options.css",
     "extension/settings.js", "extension/follow.js", "extension/popup.html", "extension/popup.js", "extension/popup.css",
     "extension/icons/icon16.png", "extension/icons/icon32.png",

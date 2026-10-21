@@ -7,12 +7,14 @@ Features:
 • Profiles at a glance: See follower counts and short bios. Click to expand the full bio and location.
 • Chinese translations: Translate bios into Chinese and switch back to the original text anytime. Uses browser models by default. Optionally choose Google no-key translation or configure a Chat Completions, Anthropic Messages, or Gemini generateContent API. Google uses an unofficial endpoint that may be limited or discontinued; ongoing free access is not guaranteed. Custom providers may charge fees.
 • Quick follow: Follow authors directly from posts.
+• Bookmark counts: See the count next to X's bookmark button in timelines.
+• Copy as Markdown: Use the native share menu to copy API-provided post text, expanded links, media, and attribution as Markdown.
 • Hide notification counts: Hide the unread number on the notification icon. This is on by default and can be changed in settings.
 • Immersive browsing: Independently hide the left navigation or right sidebar. These layout preferences and the notification-count preference are stored only on this device; account profiles and follow states are not persisted.
 
 Works across feeds, post details, replies, quote posts, search results, and account lists.
 
-Refresh X after installation to get started. No extra account needed. Profile data is processed in your browser and is not sent to the developer. Optional Google or custom API translation sends bio text to your chosen provider after you configure it and grant host access. API settings, including the key, stay in this browser without cloud sync.
+Refresh X after installation to get started. No extra account needed. Profile and post data is processed in your browser and is not sent to the developer. Post text is kept in tab memory and written to the system clipboard only when you choose Copy as Markdown. Optional Google or custom API translation sends bio text to your chosen provider after you configure it and grant host access. API settings, including the key, stay in this browser without cloud sync.
 
 Website: https://xpandmax.com
 

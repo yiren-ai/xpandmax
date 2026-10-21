@@ -74,13 +74,14 @@ try {
     const html = await fs.readFile(path.join(root, 'tests/browser/fixture.html'), 'utf8');
     const tweet = (id, views, hours, extra = {}) => ({ __typename: 'Tweet', rest_id: id,
       views: { state: 'EnabledWithCount', count: String(views) },
-      core: { user_results: { result: { core: { screen_name: id === '102' ? 'fixture_quote' : 'fixture_author' }, relationship_counts: { followers: 1234 }, profile_bio: { description: '合成测试简介' } } } },
-      legacy: { created_at: new Date(now - hours * 3600000).toUTCString(), favorite_count: 100, retweet_count: 20, reply_count: 5, bookmark_count: 10 }, ...extra });
+      core: { user_results: { result: { core: { name: id === '102' ? '引用作者' : '测试作者', screen_name: id === '102' ? 'fixture_quote' : 'fixture_author' }, relationship_counts: { followers: 1234 }, profile_bio: { description: '合成测试简介' } } } },
+      legacy: { full_text: id === '102' ? '接口返回的引用正文' : '接口返回的原帖正文', created_at: new Date(now - hours * 3600000).toUTCString(), favorite_count: 100, retweet_count: 20, reply_count: 5, bookmark_count: 10 }, ...extra });
     // X returns whole-second timestamps. Keep the fixture equally precise.
     const preciseQuoteTime = new Date(new Date(quoteTime).setMilliseconds(0)).toISOString();
     const url = fixtureURL.replace(encodeURIComponent(quoteTime), encodeURIComponent(preciseQuoteTime));
     const payload = { data: [tweet('101', 6000, 1, { quoted_status_result: { result: tweet('102', 44000, 2) } }), { entryId: 'promoted-103', content: tweet('103', 10000, 1) }] };
     const unexpected = [];
+    await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: 'https://x.com' });
     await context.route('**/*', async route => {
       const requestURL = new URL(route.request().url());
       if (requestURL.origin === 'https://x.com' && requestURL.pathname === '/home') return route.fulfill({ contentType: 'text/html', body: html });
@@ -94,8 +95,14 @@ try {
     await page.waitForFunction(() => document.querySelectorAll('[data-xfc-velocity]').length === 2);
     assert.equal(await page.locator('article').nth(1).locator('[data-xfc-velocity]').count(), 0);
     assert.equal(await page.locator('[role="link"] [data-xfc-velocity]').getAttribute('data-tier'), 'viral');
+    await page.locator('[data-xfc-bookmark-count]').waitFor();
+    assert.equal(await page.locator('[data-xfc-bookmark-count]').textContent(), '10');
+    await page.locator('button[aria-label="分享帖子"]').click();
+    assert.equal(await page.locator('[data-xfc-copy-markdown] svg').getAttribute('data-lucide'), 'clipboard-copy');
+    await page.locator('[data-xfc-copy-markdown]').click();
+    assert.equal(await page.evaluate(() => navigator.clipboard.readText()), '接口返回的原帖正文\n\n— [测试作者 @fixture_author](https://x.com/fixture_author/status/101)\n');
     await page.locator('[data-xfc-inline-profile]').first().waitFor();
-    check('manifest-bridge-content-isolated-world', 'Original, linkless quote, profiles and promoted filtering render through the installed extension');
+    check('manifest-bridge-content-isolated-world', 'Profiles, promoted filtering, bookmark counts and API-backed Markdown copy render through the installed extension');
     await page.screenshot({ path: path.join(output, 'desktop.png') });
     const popup = await context.newPage();
     await popup.goto(`chrome-extension://${id}/popup.html`);
@@ -103,13 +110,24 @@ try {
     await page.waitForFunction(() => !document.querySelector('[data-xfc-velocity]'));
     await popup.locator('#show-tweet-velocity').check();
     await page.waitForFunction(() => document.querySelectorAll('[data-xfc-velocity]').length === 2);
+    await popup.locator('#show-bookmark-count').uncheck();
+    await page.waitForFunction(() => !document.querySelector('[data-xfc-bookmark-count]'));
+    await popup.locator('#show-bookmark-count').check();
+    await page.locator('[data-xfc-bookmark-count]').waitFor();
+    await popup.locator('#copy-as-markdown').uncheck();
+    await page.waitForFunction(() => !document.querySelector('[data-xfc-copy-markdown]'));
+    await page.locator('button[aria-label="分享帖子"]').click();
+    await page.locator('[role="menu"] [data-testid="copyLink"]').waitFor();
+    assert.equal(await page.locator('[data-xfc-copy-markdown]').count(), 0);
+    await popup.locator('#copy-as-markdown').check();
+    await page.locator('[data-xfc-copy-markdown]').waitFor();
     await popup.locator('#velocity-rising').fill('100');
     await popup.locator('#velocity-viral').fill('500');
     await popup.getByRole('button', { name: '保存阈值' }).click();
     await page.waitForFunction(() => [...document.querySelectorAll('[data-xfc-velocity]')].every(n => n.dataset.tier === 'viral'));
     await popup.reload();
     assert.equal(await popup.locator('#velocity-viral').inputValue(), '500');
-    check('real-popup-storage-change-and-reload', 'Toggle and thresholds propagate through chrome.storage and persist after popup reload');
+    check('real-popup-storage-change-and-reload', 'Velocity, bookmark and Markdown toggles propagate through chrome.storage; thresholds persist after popup reload');
     await popup.screenshot({ path: path.join(output, 'popup.png') });
     const second = await context.newPage(); await second.goto(url);
     await second.waitForFunction(() => document.querySelectorAll('[data-xfc-velocity][data-tier="viral"]').length === 2);

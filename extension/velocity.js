@@ -2,11 +2,14 @@
   'use strict';
   const CHANNEL = 'x-follower-count-v1';
   const TTL = 30 * 60 * 1000;
-  const defaults = { showTweetVelocity: true, velocityRisingThreshold: 1000, velocityViralThreshold: 10000 };
+  const defaults = { showTweetVelocity: true, showBookmarkCount: true, velocityRisingThreshold: 1000, velocityViralThreshold: 10000 };
   let settings = { ...defaults };
   const changed = new Set();
   const tweets = new Map();
+  const descriptions = new WeakMap();
   let scheduled = false;
+  let tooltipTimer;
+  let tooltipAnchor;
   const validThresholds = value => Number.isFinite(value.velocityRisingThreshold)
     && value.velocityRisingThreshold > 0 && Number.isFinite(value.velocityViralThreshold)
     && value.velocityViralThreshold > value.velocityRisingThreshold;
@@ -14,6 +17,7 @@
   function configure(values) {
     settings = { ...settings, ...values };
     if (typeof settings.showTweetVelocity !== 'boolean') settings.showTweetVelocity = true;
+    if (typeof settings.showBookmarkCount !== 'boolean') settings.showBookmarkCount = true;
     if (!validThresholds(settings)) {
       settings.velocityRisingThreshold = defaults.velocityRisingThreshold;
       settings.velocityViralThreshold = defaults.velocityViralThreshold;
@@ -49,6 +53,50 @@
     return [metric('浏览', 'views'), metric('点赞', 'likes'), metric('转发', 'reposts'), metric('回复', 'replies'), metric('收藏', 'bookmarks'),
       `流速：${number(rate)}/小时（发布以来平均，最短按 6 分钟）`, `爆帖指数：${score}`, `发布时间：${new Date(record.createdAt).toLocaleString('zh-CN')}`].join('\n');
   }
+  function hideTooltip() {
+    clearTimeout(tooltipTimer);
+    tooltipTimer = undefined;
+    tooltipAnchor?.removeAttribute('aria-describedby');
+    tooltipAnchor = undefined;
+    document.querySelector('[data-xfc-velocity-tooltip]')?.remove();
+  }
+  function showTooltip(anchor, point) {
+    const text = descriptions.get(anchor);
+    if (!text || !anchor.isConnected) return;
+    hideTooltip();
+    tooltipAnchor = anchor;
+    const tooltip = document.createElement('div');
+    tooltip.id = 'xfc-velocity-tooltip';
+    tooltip.setAttribute('data-xfc-velocity-tooltip', '');
+    tooltip.setAttribute('role', 'tooltip');
+    tooltip.textContent = text;
+    document.body.append(tooltip);
+    anchor.setAttribute('aria-describedby', tooltip.id);
+    const rect = anchor.getBoundingClientRect();
+    const left = Math.max(8, point?.x ?? rect.left);
+    const top = Math.max(8, rect.bottom + (point ? 20 : 6));
+    tooltip.style.setProperty('max-width', `${Math.max(120, Math.min(520, innerWidth - left - 8))}px`, 'important');
+    const bounds = tooltip.getBoundingClientRect();
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${top + bounds.height <= innerHeight - 8 ? top : Math.max(8, top - bounds.height)}px`;
+  }
+  const velocityBadge = target => target instanceof Element ? target.closest('[data-xfc-velocity]') : null;
+  document.addEventListener('mouseover', event => {
+    const badge = velocityBadge(event.target);
+    if (!badge || (event.relatedTarget instanceof Node && badge.contains(event.relatedTarget))) return;
+    clearTimeout(tooltipTimer);
+    const point = { x: event.clientX, y: event.clientY };
+    tooltipTimer = setTimeout(() => showTooltip(badge, point), 120);
+  });
+  document.addEventListener('mouseout', event => {
+    const badge = velocityBadge(event.target);
+    if (badge && !(event.relatedTarget instanceof Node && badge.contains(event.relatedTarget))) hideTooltip();
+  });
+  document.addEventListener('focusin', event => { const badge = velocityBadge(event.target); if (badge) showTooltip(badge); });
+  document.addEventListener('focusout', event => { if (velocityBadge(event.target)) hideTooltip(); });
+  document.addEventListener('keydown', event => { if (event.key === 'Escape') hideTooltip(); });
+  window.addEventListener('scroll', hideTooltip, true);
+  window.addEventListener('resize', hideTooltip);
   function linkedId(author) {
     const link = [...author.querySelectorAll('a[href]')].find(anchor => anchor.querySelector('time'));
     if (!link) return;
@@ -96,6 +144,33 @@
     const timestamp = Date.parse(author.querySelector('time')?.getAttribute('datetime'));
     if (record && timestamp === record.createdAt) return quotedId;
   }
+  function badgePlacement(author) {
+    const time = author.querySelector('time');
+    if (time) return { anchor: time.closest('a') || time.parentElement, after: true };
+    if (author.firstElementChild) return { anchor: author.firstElementChild, after: false };
+  }
+  function renderBookmarkCounts() {
+    const used = new Set();
+    if (settings.showBookmarkCount) for (const article of document.querySelectorAll('article[data-testid="tweet"]')) {
+      const author = article.querySelector('[data-testid="User-Name"]');
+      const record = author && tweets.get(tweetId(author));
+      const button = article.querySelector('button[data-testid="bookmark"], button[data-testid="removeBookmark"]');
+      if (!button || !Number.isSafeInteger(record?.bookmarks) || record.bookmarks <= 0) continue;
+      const nativeCount = [...button.querySelectorAll('span')].some(node => !node.hasAttribute('data-xfc-bookmark-count')
+        && node.children.length === 0 && /\d/.test(node.textContent || ''));
+      if (nativeCount) continue;
+      let count = button.querySelector('[data-xfc-bookmark-count]');
+      if (!count) {
+        count = document.createElement('span');
+        count.setAttribute('data-xfc-bookmark-count', '');
+        count.setAttribute('aria-hidden', 'true');
+        (button.querySelector(':scope > div') || button).append(count);
+      }
+      count.textContent = number(record.bookmarks);
+      used.add(count);
+    }
+    for (const count of document.querySelectorAll('[data-xfc-bookmark-count]')) if (!used.has(count)) count.remove();
+  }
   function render() {
     scheduled = false;
     const now = Date.now();
@@ -110,9 +185,9 @@
         badge = document.createElement('span');
         badge.setAttribute('data-xfc-velocity', '');
         badge.tabIndex = 0;
-        const time = author.querySelector('time');
-        const timestamp = time?.closest('a') || time?.parentElement;
-        if (timestamp) timestamp.after(badge);
+        const placement = badgePlacement(author);
+        if (placement?.after) placement.anchor.after(badge);
+        else if (placement) placement.anchor.append(badge);
         else author.append(badge);
       }
       const rate = record.views / Math.max((now - record.createdAt) / 3600000, 0.1);
@@ -120,11 +195,19 @@
       const text = `${number(rate)}/小时`;
       const title = description(record, rate);
       if (badge.textContent !== text) badge.textContent = text;
-      if (badge.title !== title) { badge.title = title; badge.setAttribute('aria-label', title); }
+      badge.removeAttribute('title');
+      descriptions.set(badge, title);
+      badge.setAttribute('aria-label', title);
+      if (tooltipAnchor === badge) {
+        const tooltip = document.querySelector('[data-xfc-velocity-tooltip]');
+        if (tooltip) tooltip.textContent = title;
+      }
       if (badge.dataset.tier !== tier) badge.dataset.tier = tier;
       used.add(badge);
     }
     for (const badge of document.querySelectorAll('[data-xfc-velocity]')) if (!used.has(badge)) badge.remove();
+    if (tooltipAnchor && !tooltipAnchor.isConnected) hideTooltip();
+    renderBookmarkCounts();
   }
   function schedule() {
     if (!scheduled) { scheduled = true; requestAnimationFrame(render); }
@@ -141,7 +224,9 @@
       const quotedId = typeof record.quotedId === 'string' && /^\d{1,25}$/.test(record.quotedId) ? record.quotedId : undefined;
       if (record.valid === false) {
         tweets.delete(record.id);
-        tweets.set(record.id, { id: record.id, valid: false, observedAt: record.observedAt, quotedId });
+        const clean = { id: record.id, valid: false, observedAt: record.observedAt, quotedId };
+        if (Number.isSafeInteger(record.bookmarks) && record.bookmarks >= 0) clean.bookmarks = record.bookmarks;
+        tweets.set(record.id, clean);
         continue;
       }
       if (record.valid !== true || !Number.isSafeInteger(record.views) || record.views < 0

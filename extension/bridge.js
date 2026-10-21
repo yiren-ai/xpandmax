@@ -61,6 +61,40 @@
     return [...output.values()];
   }
 
+  function shareFields(node, id) {
+    const legacy = node.legacy || {};
+    const user = node.core?.user_results?.result;
+    const authorHandle = user?.core?.screen_name ?? user?.legacy?.screen_name;
+    const authorName = user?.core?.name ?? user?.legacy?.name;
+    const note = node.note_tweet?.note_tweet_results?.result;
+    let text = note?.text ?? legacy.full_text ?? legacy.text;
+    if (typeof text !== 'string') return {};
+    const replacements = new Map();
+    const canonicalArticle = typeof authorHandle === 'string' ? `https://x.com/${authorHandle}/article/${id}` : '';
+    for (const entry of [...(legacy.entities?.urls || []), ...(note?.entity_set?.urls || [])].slice(0, 100)) {
+      if (typeof entry?.url !== 'string' || typeof entry.expanded_url !== 'string') continue;
+      const expanded = canonicalArticle && /^https?:\/\/(?:x|twitter)\.com\/i\/article\/\d+/i.test(entry.expanded_url)
+        ? canonicalArticle : entry.expanded_url;
+      replacements.set(entry.url, expanded);
+    }
+    for (const media of (legacy.extended_entities?.media || legacy.entities?.media || []).slice(0, 20)) {
+      if (typeof media?.url !== 'string') continue;
+      if (media.type === 'photo' && typeof media.media_url_https === 'string') {
+        replacements.set(media.url, `![](${media.media_url_https})`);
+      } else if (media.type === 'video' || media.type === 'animated_gif') {
+        const videos = (media.video_info?.variants || []).filter(item => item?.content_type === 'video/mp4' && typeof item.url === 'string')
+          .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
+        const url = videos[0]?.url ?? media.media_url_https;
+        if (typeof url === 'string') replacements.set(media.url, `[视频](${url})`);
+      }
+    }
+    for (const [source, target] of replacements) text = text.split(source).join(target);
+    const fields = { text: text.slice(0, 50000) };
+    if (typeof authorHandle === 'string' && /^[a-zA-Z0-9_]{1,15}$/.test(authorHandle)) fields.authorHandle = authorHandle;
+    if (typeof authorName === 'string') fields.authorName = authorName.slice(0, 200);
+    return fields;
+  }
+
   // Never request tweet details: these metrics come only from responses X already received.
   function consumeTweets(root) {
     const stack = [{ node: root, promoted: false }];
@@ -77,14 +111,16 @@
         const raw = node.views?.count;
         const views = typeof raw === 'string' && /^\d+$/.test(raw) ? Number(raw) : raw;
         const createdAt = Date.parse(node.legacy?.created_at ?? node.created_at);
-        const record = { id, observedAt: now, valid: !promoted && node.views?.state === 'EnabledWithCount'
+        const record = { id, observedAt: now, ...shareFields(node, id), valid: !promoted && node.views?.state === 'EnabledWithCount'
           && Number.isSafeInteger(views) && views >= 0 && Number.isFinite(createdAt) && createdAt <= now };
+        const bookmarks = node.legacy?.bookmark_count;
+        if (!promoted && Number.isSafeInteger(bookmarks) && bookmarks >= 0) record.bookmarks = bookmarks;
         const quoted = node.quoted_status_result?.result;
         const quotedId = node.legacy?.quoted_status_id_str ?? quoted?.rest_id ?? quoted?.tweet?.rest_id;
         if (typeof quotedId === 'string' && /^\d{1,25}$/.test(quotedId)) record.quotedId = quotedId;
         if (record.valid) {
           Object.assign(record, { views, createdAt });
-          for (const [field, source] of Object.entries({ likes: 'favorite_count', reposts: 'retweet_count', replies: 'reply_count', bookmarks: 'bookmark_count' })) {
+          for (const [field, source] of Object.entries({ likes: 'favorite_count', reposts: 'retweet_count', replies: 'reply_count' })) {
             const value = node.legacy?.[source];
             if (Number.isSafeInteger(value) && value >= 0) record[field] = value;
           }

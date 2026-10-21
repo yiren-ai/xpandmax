@@ -15,10 +15,10 @@ button { cursor:pointer; }
 <main data-testid="primaryColumn">
 <h1>扩展自动验收 · 合成账号</h1>
 <article data-testid="tweet">
-<div data-testid="User-Name"><div><a href="/fixture_author">测试作者</a></div><div><a href="/fixture_author/status/101"><time>1 小时</time></a></div></div>
-<p>原帖与无独立链接的引用帖应分别显示流速。</p>
+<div data-testid="User-Name"><div><a href="/fixture_author"><span>测试作者</span></a></div><div><span>@fixture_author</span><a href="/fixture_author/status/101"><time>1 小时</time></a></div></div>
+<p data-testid="tweetText">这段 DOM 文本不应进入 Markdown。</p>
 <div role="link"><div data-testid="User-Name"><div>引用作者</div><div><span>@fixture_quote</span><div><time id="quote-time">2 小时</time></div></div></div><p>引用卡片不使用原帖的数据。</p></div>
-<div role="group">回复 · 转发 · 喜欢</div>
+<div role="group"><button data-testid="reply">回复</button><button data-testid="bookmark"><div>书签</div></button><button aria-haspopup="menu" aria-label="分享帖子">分享</button></div>
 </article>
 <article data-testid="tweet"><div data-testid="User-Name"><a href="/fixture_ad">广告样本</a><a href="/fixture_ad/status/103"><time>1 小时</time></a></div><p>广告不显示流速徽章。</p></article>
 <button id="reuse">复用原帖节点</button>
@@ -30,6 +30,13 @@ const times = new URLSearchParams(location.search);
 document.querySelector('#quote-time').dateTime = times.get('quoteTime');
 document.querySelector('#reuse').onclick = () => document.querySelector('a[href*="/status/101"]').href = '/fixture_author/status/999';
 document.querySelector('#restore').onclick = () => document.querySelector('a[href*="/status/999"]').href = '/fixture_author/status/101';
+document.querySelector('[aria-label="分享帖子"]').onclick = () => {
+  document.querySelector('[role="menu"]')?.remove();
+  const menu = document.createElement('div');
+  menu.setAttribute('role', 'menu');
+  menu.innerHTML = '<div><div role="menuitem" data-testid="copyLink"><svg viewBox="0 0 24 24"><path d="M1 1"></path></svg><span>复制链接</span></div></div>';
+  document.body.append(menu);
+};
 function receive() { return fetch('/i/api/graphql/fixture/HomeTimeline').then(r=>r.json()); }
 document.querySelector('#refresh').onclick = receive;
 receive();

@@ -2,6 +2,8 @@
   'use strict';
   const controls = [
     { key: 'showTweetVelocity', id: 'show-tweet-velocity', label: '帖子流速', defaultValue: true },
+    { key: 'showBookmarkCount', id: 'show-bookmark-count', label: '书签数', defaultValue: true },
+    { key: 'copyAsMarkdownEnabled', id: 'copy-as-markdown', label: '复制为 Markdown', defaultValue: true },
     { key: 'hideNotificationCount', id: 'hide-notification-count', label: '通知数字', defaultValue: true },
     { key: 'hideLeftSidebar', id: 'hide-left-sidebar', label: '左侧导航', defaultValue: false },
     { key: 'hideSidebarRecommendations', id: 'hide-sidebar-recommendations', label: '右侧栏', defaultValue: true }
@@ -41,7 +43,7 @@
             status.textContent = '设置未保存，请重试';
           } else {
             saved = next;
-            status.textContent = key === 'showTweetVelocity' ? `${saved ? '已显示' : '已关闭'}帖子流速` : `${saved ? '已隐藏' : '已恢复显示'}${label}`;
+            status.textContent = key.startsWith('hide') ? `${saved ? '已隐藏' : '已恢复显示'}${label}` : `${saved ? '已开启' : '已关闭'}${label}`;
           }
           toggle.disabled = false;
         });

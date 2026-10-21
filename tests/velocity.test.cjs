@@ -172,17 +172,22 @@ test('rate text keeps three significant digits and exact value stays in the titl
   } finally { t.dom.window.close(); }
 });
 
-test('detail header without a timestamp pins the badge after the account link, not at the end of the name container', async () => {
+test('detail header without a timestamp puts the badge on the account handle line, not a new row', async () => {
   const createdAt = Date.now() - 3600000;
-  const t = setup(`<article><div data-testid="User-Name"><div><a href="/demo">OpenAI</a><span>verified</span></div></div><p>Body</p><a href="/demo/status/1"><time datetime="${new Date(createdAt).toISOString()}">1h</time></a></article>`);
+  // 按真实结构：@handle 外面套着一个 column 容器，直接插兄弟节点会换行。
+  const t = setup(`<article><div data-testid="User-Name"><div><a href="/demo">OpenAI</a></div><div class="handle-line" style="display:flex;flex-direction:column"><a href="/demo" role="link"><span>@OpenAI</span></a></div></div><p>Body</p><a href="/demo/status/1"><time datetime="${new Date(createdAt).toISOString()}">1h</time></a></article>`);
   try {
     t.w.history.replaceState({}, '', '/demo/status/1');
     send(t.w, [record('1', { createdAt })]);
     await tick();
     const badge = t.w.document.querySelector('[data-xfc-velocity]');
-    const row = t.w.document.querySelector('[data-testid="User-Name"] > div');
+    const line = t.w.document.querySelector('.handle-line');
     assert.ok(badge, '详情页 header 里应该有徽章');
-    assert.equal(badge.parentElement, row, '徽章应落在身份行内，而不是作者名容器末尾');
-    assert.equal(badge.previousElementSibling.getAttribute('href'), '/demo', '徽章应紧贴 @handle');
+    assert.equal(badge.parentElement, line, '徽章应和 @handle 在同一个容器里');
+    assert.equal(badge.previousElementSibling.tagName, 'A', '徽章应紧跟在账号链接后面');
+    assert.equal(line.getAttribute('data-xfc-velocity-line'), '', '这一层要被标成一行');
+    t.change({ showTweetVelocity: false });
+    await tick();
+    assert.equal(line.getAttribute('data-xfc-velocity-line'), null, '徽章移除后标记也要撤掉');
   } finally { t.dom.window.close(); }
 });

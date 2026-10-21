@@ -206,3 +206,8 @@ html[data-xfc-hide-left-sidebar="true"] header[role="banner"]:has(nav[role="navi
 }
 [data-xfc-velocity][data-tier="rising"] { color: #1d9bf0; }
 [data-xfc-velocity][data-tier="viral"] { color: #e06a16; background: rgba(224, 106, 22, .08); }
+/* X 用 column 容器包住 @handle，改成一行才能把徽章摆在账号右边而不是下一行。 */
+[data-xfc-velocity-line] {
+  flex-direction: row !important;
+  align-items: center !important;
+}

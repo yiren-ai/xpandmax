@@ -109,15 +109,21 @@
     if (record && timestamp === record.createdAt) return quotedId;
   }
   // 徽章永远跟着“这条帖的身份行”：信息流是「@handle · 43分钟」之后，
-  // 详情页 header 里没有时间戳，就往前贴到 @handle 后面。找不到锚点就不渲染，
-  // 绝不回退到作者名容器的末尾（那会让它自占一行、居中，还顶开简介行）。
+  // 详情页 header 里没有时间戳，就往前贴到 @handle 后面。找不到锚点就不渲染。
+  // 注意 X 用 column 容器包住 @handle，直接插兄弟节点会换到下一行，所以这一层
+  // 要改成一行再插（[data-xfc-velocity-line]）。
   function metaAnchor(author) {
     const time = author.querySelector('time');
-    if (time) return time.closest('a') || time.parentElement;
+    if (time) return { node: time.closest('a') || time.parentElement, mode: 'after' };
     // 账号链接里最后一个是 @handle（前面可能是头像或昵称链接）。
-    return [...author.querySelectorAll('a[href]')]
+    const handle = [...author.querySelectorAll('a[href]')]
       .filter(link => /^\/[A-Za-z0-9_]{1,15}\/?$/.test(link.getAttribute('href') || ''))
-      .pop() || null;
+      .pop();
+    if (!handle) return null;
+    const line = handle.parentElement;
+    if (!line || line === author) return { node: handle, mode: 'after' };
+    line.setAttribute('data-xfc-velocity-line', '');
+    return { node: line, mode: 'append' };
   }
   function findBadge(author, id) {
     const inside = [...author.querySelectorAll('[data-xfc-velocity]')]
@@ -141,7 +147,8 @@
         badge = document.createElement('span');
         badge.setAttribute('data-xfc-velocity', '');
         badge.tabIndex = 0;
-        anchor.after(badge);
+        if (anchor.mode === 'append') anchor.node.append(badge);
+        else anchor.node.after(badge);
       }
       badge.dataset.xfcTweetId = id;
       // 用观测时刻算，不用当前时刻：否则分母每秒都在长，数字永远在往下淌。
@@ -167,6 +174,9 @@
       used.add(badge);
     }
     for (const badge of document.querySelectorAll('[data-xfc-velocity]')) if (!used.has(badge)) badge.remove();
+    for (const line of document.querySelectorAll('[data-xfc-velocity-line]')) {
+      if (!line.querySelector('[data-xfc-velocity]')) line.removeAttribute('data-xfc-velocity-line');
+    }
   }
   function schedule() {
     if (scheduled) return;

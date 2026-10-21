@@ -55,10 +55,10 @@ test('six minute floor, zero views, missing interaction fields and bounded score
     send(t.w, [record('1', { views: 5000, createdAt: Date.now(), likes: 1000, reposts: 1000, replies: 1000, bookmarks: 1000 }), record('2', { views: 0, bookmarks: undefined })]);
     await tick();
     const badges = t.w.document.querySelectorAll('[data-xfc-velocity]');
-    assert.equal(badges[0].textContent, '50,000/小时');
+    assert.equal(badges[0].textContent, '≈5万/小时');
     assert.equal(badges[0].dataset.tier, 'viral');
     assert.match(badges[0].title, /爆帖指数：100.0\/100/);
-    assert.equal(badges[1].textContent, '0/小时');
+    assert.equal(badges[1].textContent, '≈0/小时');
     assert.match(badges[1].title, /收藏：—/);
     assert.match(badges[1].title, /互动字段不完整/);
   } finally { t.dom.window.close(); }
@@ -127,7 +127,7 @@ test('real X quote cards without links use explicit quoted ID and matching times
     send(t.w, [record('1', { quotedId: '2', valid: false }), record('2', { createdAt, views: 5000 })]);
     await tick();
     assert.equal(t.w.document.querySelectorAll('[data-xfc-velocity]').length, 1);
-    assert.equal(t.w.document.querySelector('[role="link"] [data-xfc-velocity]').textContent, '5,000/小时');
+    assert.equal(t.w.document.querySelector('[role="link"] [data-xfc-velocity]').textContent, '≈5,000/小时');
     t.w.document.querySelector('[role="link"] time').setAttribute('datetime', new Date(createdAt - 1000).toISOString());
     await tick();
     assert.equal(t.w.document.querySelectorAll('[data-xfc-velocity]').length, 0);
@@ -157,5 +157,32 @@ test('detail permalink outside author row maps only the matching main author and
     t.w.dispatchEvent(new t.w.PopStateEvent('popstate'));
     await tick();
     assert.equal(t.w.document.querySelectorAll('[data-xfc-velocity]').length, 0);
+  } finally { t.dom.window.close(); }
+});
+
+test('rate text keeps three significant digits and exact value stays in the title', async () => {
+  const t = setup(author('1') + author('2') + author('3'));
+  try {
+    const createdAt = Date.now() - 3600000;
+    send(t.w, [record('1', { views: 472, createdAt }), record('2', { views: 7897, createdAt }), record('3', { views: 597450, createdAt })]);
+    await tick();
+    assert.deepEqual([...t.w.document.querySelectorAll('[data-xfc-velocity]')].map(x => x.textContent), ['≈472/小时', '≈7,900/小时', '≈59.7万/小时']);
+    const title = t.w.document.querySelectorAll('[data-xfc-velocity]')[2].title;
+    assert.match(title, /流速：597,450\/小时/);
+  } finally { t.dom.window.close(); }
+});
+
+test('detail header without a timestamp pins the badge after the account link, not at the end of the name container', async () => {
+  const createdAt = Date.now() - 3600000;
+  const t = setup(`<article><div data-testid="User-Name"><div><a href="/demo">OpenAI</a><span>verified</span></div></div><p>Body</p><a href="/demo/status/1"><time datetime="${new Date(createdAt).toISOString()}">1h</time></a></article>`);
+  try {
+    t.w.history.replaceState({}, '', '/demo/status/1');
+    send(t.w, [record('1', { createdAt })]);
+    await tick();
+    const badge = t.w.document.querySelector('[data-xfc-velocity]');
+    const row = t.w.document.querySelector('[data-testid="User-Name"] > div');
+    assert.ok(badge, '详情页 header 里应该有徽章');
+    assert.equal(badge.parentElement, row, '徽章应落在身份行内，而不是作者名容器末尾');
+    assert.equal(badge.previousElementSibling.getAttribute('href'), '/demo', '徽章应紧贴 @handle');
   } finally { t.dom.window.close(); }
 });

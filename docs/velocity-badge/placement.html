@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>详情页流速徽章 · 三种放法</title>
+<style>
+  :root { --text:#0f1419; --muted:#536471; --blue:#1d9bf0; --line:#eff3f4; }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:28px; background:#f7f9f9; color:var(--text);
+    font:400 15px/20px -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; }
+  h1 { margin:0 0 4px; font-size:19px; line-height:26px; }
+  .lede { margin:0 0 22px; font-size:13px; line-height:20px; color:var(--muted); }
+  .card { width:620px; padding:16px 20px 18px; border:1px solid var(--line); border-radius:14px;
+    background:#fff; margin-bottom:22px; }
+  .label { margin:0 0 10px; font-size:13px; font-weight:700; color:var(--muted); letter-spacing:.02em; }
+  .label b { color:#0f1419; }
+  .tweet { display:flex; gap:12px; }
+  .avatar { width:44px; height:44px; border-radius:50%; flex:0 0 44px; margin-top:2px;
+    background:linear-gradient(135deg,#cde7f5,#f3d7e3); }
+  .body { min-width:0; flex:1; }
+  .name-line { display:flex; align-items:center; gap:4px; font-weight:700; }
+  .verified { width:15px; height:15px; border-radius:50%; background:var(--blue); flex:0 0 15px; }
+  .handle { color:var(--muted); font-weight:400; }
+  .bio-line { display:flex; align-items:center; gap:8px; margin:4px 0 10px;
+    font-size:12px; line-height:20px; color:#647581; white-space:nowrap; overflow:hidden; }
+  .bio-line .followers { color:var(--blue); flex:0 0 auto; }
+  .bio-line .divider { width:1px; height:12px; background:#e0e7ec; flex:0 0 1px; }
+  .bio-line .bio { overflow:hidden; text-overflow:ellipsis; }
+  .text { margin:0; font-size:15px; line-height:20px; }
+  .date-row { margin-top:14px; font-size:13px; line-height:20px; color:var(--muted); }
+  .badge { display:inline-block; margin-inline-start:6px; padding:0 2px; border-radius:4px;
+    font-size:12px; line-height:18px; font-variant-numeric:tabular-nums; white-space:nowrap;
+    color:#e06a16; background:rgba(224,106,22,.08); }
+  .badge.plain { background:transparent; }
+  .float-badge { display:flex; justify-content:center; margin:12px 0 6px; }
+  .old { display:inline-block; flex:0 0 auto; margin-inline-start:6px; padding:1px 5px;
+    border-radius:4px; font-size:11px; line-height:16px; color:#e06a16;
+    background:rgba(224,106,22,.12); }
+</style>
+</head>
+<body>
+<h1>详情页 · 流速徽章放哪</h1>
+<p class="lede">三张都是详情页 header，差别只在胶囊落点。信息流那行不变（@handle · 43分钟 ≈7,900/小时）。</p>
+
+<div class="card">
+  <p class="label"><b>A</b> 贴在显示名后面</p>
+  <div class="tweet">
+    <div class="avatar"></div>
+    <div class="body">
+      <div class="name-line">OpenAI <span class="verified"></span><span class="badge">≈59.7万/小时</span></div>
+      <div class="handle">@OpenAI</div>
+      <div class="bio-line">
+        <span class="followers">545.8万 粉丝</span><span class="divider"></span>
+        <span class="bio">OpenAI 的使命是确保通用人工智能造福全人类</span><span>⌄</span>
+      </div>
+      <p class="text">OpenAI 模型帮助研究人员——作为我们“修补地球”计划的一部分——在 PHP 中发现了关键安全漏洞。</p>
+      <div class="date-row">下午9:24 · 2026年10月21日 · 5,631 查看</div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <p class="label"><b>B</b> 贴在 @handle 后面（现在这版）</p>
+  <div class="tweet">
+    <div class="avatar"></div>
+    <div class="body">
+      <div class="name-line">OpenAI <span class="verified"></span></div>
+      <div class="handle">@OpenAI<span class="badge">≈59.7万/小时</span></div>
+      <div class="bio-line">
+        <span class="followers">545.8万 粉丝</span><span class="divider"></span>
+        <span class="bio">OpenAI 的使命是确保通用人工智能造福全人类</span><span>⌄</span>
+      </div>
+      <p class="text">OpenAI 模型帮助研究人员——作为我们“修补地球”计划的一部分——在 PHP 中发现了关键安全漏洞。</p>
+      <div class="date-row">下午9:24 · 2026年10月21日 · 5,631 查看</div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <p class="label"><b>C</b> 贴在正文末尾的阅读量那行（上一版）</p>
+  <div class="tweet">
+    <div class="avatar"></div>
+    <div class="body">
+      <div class="name-line">OpenAI <span class="verified"></span></div>
+      <div class="handle">@OpenAI</div>
+      <div class="bio-line">
+        <span class="followers">545.8万 粉丝</span><span class="divider"></span>
+        <span class="bio">OpenAI 的使命是确保通用人工智能造福全人类</span><span>⌄</span>
+      </div>
+      <p class="text">OpenAI 模型帮助研究人员——作为我们“修补地球”计划的一部分——在 PHP 中发现了关键安全漏洞。</p>
+      <div class="date-row">下午9:24 · 2026年10月21日 · 5,631 查看<span class="badge plain">≈59.7万/小时</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <p class="label"><b>现在（bug）</b> 自占一行、水平居中</p>
+  <div class="tweet">
+    <div class="avatar"></div>
+    <div class="body">
+      <div class="name-line">OpenAI <span class="verified"></span></div>
+      <div class="handle">@OpenAI</div>
+      <div class="float-badge"><span class="old">597,450/小时</span></div>
+      <div class="bio-line">
+        <span class="followers">545.8万 粉丝</span><span class="divider"></span>
+        <span class="bio">OpenAI 的使命是确保通用人工智能造福全人类</span><span>⌄</span>
+      </div>
+      <p class="text">OpenAI 模型帮助研究人员——作为我们“修补地球”计划的一部分——在 PHP 中发现了关键安全漏洞。</p>
+      <div class="date-row">下午9:24 · 2026年10月21日 · 5,631 查看</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

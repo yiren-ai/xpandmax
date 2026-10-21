@@ -7,6 +7,8 @@
   const changed = new Set();
   const tweets = new Map();
   let scheduled = false;
+  // 同一条记录只在数据或阈值变化时重算一次文本，DOM 变动再频繁也不必重复格式化。
+  const paints = new WeakMap();
   const validThresholds = value => Number.isFinite(value.velocityRisingThreshold)
     && value.velocityRisingThreshold > 0 && Number.isFinite(value.velocityViralThreshold)
     && value.velocityViralThreshold > value.velocityRisingThreshold;
@@ -34,6 +36,16 @@
     });
   }
   const number = value => value.toLocaleString('zh-CN', { maximumFractionDigits: 0 });
+  // 三位有效数字：读数稳定、宽度稳定，精确值留给 title。
+  const APPROX = '≈';
+  function formatRate(rate) {
+    if (!Number.isFinite(rate) || rate < 0) return '—';
+    if (rate < 1000) return String(Math.round(rate));
+    if (rate < 10000) return (Math.round(rate / 10) * 10).toLocaleString('zh-CN');
+    const wan = rate / 10000;
+    const text = wan >= 100 ? Math.round(wan).toLocaleString('zh-CN') : wan.toFixed(1).replace(/\.0$/, '');
+    return `${text}万`;
+  }
   function description(record, rate) {
     const metric = (label, key) => `${label}：${record[key] === undefined ? '—' : number(record[key])}`;
     const complete = ['likes', 'reposts', 'replies', 'bookmarks'].every(key => record[key] !== undefined);
@@ -96,6 +108,23 @@
     const timestamp = Date.parse(author.querySelector('time')?.getAttribute('datetime'));
     if (record && timestamp === record.createdAt) return quotedId;
   }
+  // 徽章永远跟着“这条帖的身份行”：信息流是「@handle · 43分钟」之后，
+  // 详情页 header 里没有时间戳，就往前贴到 @handle 后面。找不到锚点就不渲染，
+  // 绝不回退到作者名容器的末尾（那会让它自占一行、居中，还顶开简介行）。
+  function metaAnchor(author) {
+    const time = author.querySelector('time');
+    if (time) return time.closest('a') || time.parentElement;
+    // 账号链接里最后一个是 @handle（前面可能是头像或昵称链接）。
+    return [...author.querySelectorAll('a[href]')]
+      .filter(link => /^\/[A-Za-z0-9_]{1,15}\/?$/.test(link.getAttribute('href') || ''))
+      .pop() || null;
+  }
+  function findBadge(author, id) {
+    const inside = [...author.querySelectorAll('[data-xfc-velocity]')]
+      .find(node => node.closest('[data-testid="User-Name"]') === author);
+    if (inside) return inside;
+    return [...document.querySelectorAll('[data-xfc-velocity]')].find(node => node.dataset.xfcTweetId === id);
+  }
   function render() {
     scheduled = false;
     const now = Date.now();
@@ -105,29 +134,47 @@
       const id = tweetId(author);
       const record = tweets.get(id);
       if (!record || !record.valid) continue;
-      let badge = [...author.querySelectorAll('[data-xfc-velocity]')].find(node => node.closest('[data-testid="User-Name"]') === author);
+      let badge = findBadge(author, id);
       if (!badge) {
+        const anchor = metaAnchor(author);
+        if (!anchor) continue;
         badge = document.createElement('span');
         badge.setAttribute('data-xfc-velocity', '');
         badge.tabIndex = 0;
-        const time = author.querySelector('time');
-        const timestamp = time?.closest('a') || time?.parentElement;
-        if (timestamp) timestamp.after(badge);
-        else author.append(badge);
+        anchor.after(badge);
       }
-      const rate = record.views / Math.max((now - record.createdAt) / 3600000, 0.1);
-      const tier = rate >= settings.velocityViralThreshold ? 'viral' : rate >= settings.velocityRisingThreshold ? 'rising' : 'normal';
-      const text = `${number(rate)}/小时`;
-      const title = description(record, rate);
-      if (badge.textContent !== text) badge.textContent = text;
-      if (badge.title !== title) { badge.title = title; badge.setAttribute('aria-label', title); }
-      if (badge.dataset.tier !== tier) badge.dataset.tier = tier;
+      badge.dataset.xfcTweetId = id;
+      // 用观测时刻算，不用当前时刻：否则分母每秒都在长，数字永远在往下淌。
+      let paint = paints.get(record);
+      if (!paint || paint.rising !== settings.velocityRisingThreshold || paint.viral !== settings.velocityViralThreshold) {
+        const hours = Math.max((record.observedAt - record.createdAt) / 3600000, 0.1);
+        const rate = record.views / hours;
+        paint = {
+          rising: settings.velocityRisingThreshold,
+          viral: settings.velocityViralThreshold,
+          text: `${APPROX}${formatRate(rate)}/小时`,
+          title: description(record, rate),
+          tier: rate >= settings.velocityViralThreshold ? 'viral' : rate >= settings.velocityRisingThreshold ? 'rising' : 'normal',
+        };
+        paints.set(record, paint);
+      }
+      const frozen = badge.matches(':hover, :focus, :focus-within') || badge === document.activeElement;
+      if (!frozen) {
+        if (badge.textContent !== paint.text) badge.textContent = paint.text;
+        if (badge.title !== paint.title) { badge.title = paint.title; badge.setAttribute('aria-label', paint.title); }
+        if (badge.dataset.tier !== paint.tier) badge.dataset.tier = paint.tier;
+      }
       used.add(badge);
     }
     for (const badge of document.querySelectorAll('[data-xfc-velocity]')) if (!used.has(badge)) badge.remove();
   }
   function schedule() {
-    if (!scheduled) { scheduled = true; requestAnimationFrame(render); }
+    if (scheduled) return;
+    scheduled = true;
+    requestAnimationFrame(() => {
+      if (document.hidden) { scheduled = false; return; }
+      render();
+    });
   }
   window.addEventListener('message', event => {
     const data = event.data;
@@ -157,6 +204,7 @@
   });
   new MutationObserver(schedule).observe(document, { childList: true, subtree: true, attributes: true, attributeFilter: ['href', 'data-testid', 'datetime'] });
   window.addEventListener('popstate', schedule);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) schedule(); });
   setInterval(schedule, 30000);
   window.postMessage({ channel: CHANNEL, type: 'ready' }, location.origin);
   schedule();

@@ -55,10 +55,10 @@ test('six minute floor, zero views, missing interaction fields and bounded score
     send(t.w, [record('1', { views: 5000, createdAt: Date.now(), likes: 1000, reposts: 1000, replies: 1000, bookmarks: 1000 }), record('2', { views: 0, bookmarks: undefined })]);
     await tick();
     const badges = t.w.document.querySelectorAll('[data-xfc-velocity]');
-    assert.equal(badges[0].textContent, '50,000/小时');
+    assert.equal(badges[0].textContent, '≈5万/小时');
     assert.equal(badges[0].dataset.tier, 'viral');
     assert.match(badges[0].title, /爆帖指数：100.0\/100/);
-    assert.equal(badges[1].textContent, '0/小时');
+    assert.equal(badges[1].textContent, '≈0/小时');
     assert.match(badges[1].title, /收藏：—/);
     assert.match(badges[1].title, /互动字段不完整/);
   } finally { t.dom.window.close(); }
@@ -127,7 +127,7 @@ test('real X quote cards without links use explicit quoted ID and matching times
     send(t.w, [record('1', { quotedId: '2', valid: false }), record('2', { createdAt, views: 5000 })]);
     await tick();
     assert.equal(t.w.document.querySelectorAll('[data-xfc-velocity]').length, 1);
-    assert.equal(t.w.document.querySelector('[role="link"] [data-xfc-velocity]').textContent, '5,000/小时');
+    assert.equal(t.w.document.querySelector('[role="link"] [data-xfc-velocity]').textContent, '≈5,000/小时');
     t.w.document.querySelector('[role="link"] time').setAttribute('datetime', new Date(createdAt - 1000).toISOString());
     await tick();
     assert.equal(t.w.document.querySelectorAll('[data-xfc-velocity]').length, 0);
@@ -157,5 +157,81 @@ test('detail permalink outside author row maps only the matching main author and
     t.w.dispatchEvent(new t.w.PopStateEvent('popstate'));
     await tick();
     assert.equal(t.w.document.querySelectorAll('[data-xfc-velocity]').length, 0);
+  } finally { t.dom.window.close(); }
+});
+
+test('rate text keeps three significant digits and exact value stays in the title', async () => {
+  const t = setup(author('1') + author('2') + author('3'));
+  try {
+    const createdAt = Date.now() - 3600000;
+    send(t.w, [record('1', { views: 472, createdAt }), record('2', { views: 7897, createdAt }), record('3', { views: 597450, createdAt })]);
+    await tick();
+    assert.deepEqual([...t.w.document.querySelectorAll('[data-xfc-velocity]')].map(x => x.textContent), ['≈472/小时', '≈7,900/小时', '≈59.7万/小时']);
+    const title = t.w.document.querySelectorAll('[data-xfc-velocity]')[2].title;
+    assert.match(title, /流速：597,450\/小时/);
+  } finally { t.dom.window.close(); }
+});
+
+test('detail header without a timestamp puts the badge on the account handle line, not a new row', async () => {
+  const createdAt = Date.now() - 3600000;
+  // 按真实结构：@handle 外面套着一个 column 容器，直接插兄弟节点会换行。
+  const t = setup(`<article><div data-testid="User-Name"><div><a href="/demo">OpenAI</a></div><div class="handle-line" style="display:flex;flex-direction:column"><a href="/demo" role="link"><span>@OpenAI</span></a></div></div><p>Body</p><a href="/demo/status/1"><time datetime="${new Date(createdAt).toISOString()}">1h</time></a></article>`);
+  try {
+    t.w.history.replaceState({}, '', '/demo/status/1');
+    send(t.w, [record('1', { createdAt })]);
+    await tick();
+    const badge = t.w.document.querySelector('[data-xfc-velocity]');
+    const line = t.w.document.querySelector('.handle-line');
+    assert.ok(badge, '详情页 header 里应该有徽章');
+    assert.equal(badge.parentElement, line, '徽章应和 @handle 在同一个容器里');
+    assert.equal(badge.previousElementSibling.tagName, 'A', '徽章应紧跟在账号链接后面');
+    assert.equal(line.getAttribute('data-xfc-velocity-line'), '', '这一层要被标成一行');
+    t.change({ showTweetVelocity: false });
+    await tick();
+    assert.equal(line.getAttribute('data-xfc-velocity-line'), null, '徽章移除后标记也要撤掉');
+  } finally { t.dom.window.close(); }
+});
+
+test('reused author row with a focused badge switches to the new tweet and keeps focus', async () => {
+  const t = setup(author('1'));
+  try {
+    send(t.w, [record('1', { views: 100 })]);
+    await tick();
+    const badge = t.w.document.querySelector('[data-xfc-velocity]');
+    assert.equal(badge.textContent, '≈100/小时');
+    badge.focus();
+    assert.equal(t.w.document.activeElement, badge, '焦点应落在徽章上');
+
+    // 虚拟列表把同一行复用给另一条帖：时间链接改成帖子 2，再送入帖子 2 的数据。
+    t.w.document.querySelector('a').href = '/demo/status/2';
+    send(t.w, [record('2', { views: 9000 })]);
+    await tick();
+
+    assert.equal(badge.textContent, '≈9,000/小时', '帖子变了就不能继续显示旧读数');
+    assert.match(badge.title, /浏览：9,000/, 'title 也要换成新帖');
+    assert.doesNotMatch(badge.title, /浏览：100/);
+    assert.equal(t.w.document.activeElement, badge, '更新读数不应夺走焦点');
+  } finally { t.dom.window.close(); }
+});
+
+test('focus freeze still holds while the badge keeps showing the same tweet', async () => {
+  const t = setup(author('1'));
+  try {
+    send(t.w, [record('1', { views: 100 })]);
+    await tick();
+    const badge = t.w.document.querySelector('[data-xfc-velocity]');
+    badge.focus();
+
+    send(t.w, [record('1', { views: 5000 })]);
+    await tick();
+
+    assert.equal(badge.textContent, '≈100/小时', '同一条帖在聚焦时仍保持冻结');
+    assert.match(badge.title, /浏览：100/);
+
+    // 冻结只是暂停：失焦后遇到下一次渲染就应补上最新读数。
+    badge.blur();
+    t.w.dispatchEvent(new t.w.PopStateEvent('popstate'));
+    await tick();
+    assert.equal(badge.textContent, '≈5,000/小时', '失焦后的下一次渲染应更新到最新读数');
   } finally { t.dom.window.close(); }
 });

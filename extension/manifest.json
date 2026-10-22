@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "XpandMax",
-  "version": "0.9.6",
+  "version": "0.9.7",
   "description": "See follower counts and Chinese bios on X. Local translation by default; optional no-key Google or custom API.",
   "minimum_chrome_version": "111",
   "permissions": ["storage"],

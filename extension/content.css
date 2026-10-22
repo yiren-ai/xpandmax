@@ -193,14 +193,21 @@ html[data-xfc-hide-left-sidebar="true"] header[role="banner"]:has(nav[role="navi
   align-self: center;
   flex-shrink: 0;
   margin-inline-start: 6px;
-  padding: 1px 5px;
+  padding: 0 2px;
   border-radius: 4px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 400;
-  line-height: 16px;
+  line-height: 18px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
   color: rgb(113, 118, 123);
-  background: rgba(113, 118, 123, .1);
+  background: transparent;
   cursor: help;
 }
-[data-xfc-velocity][data-tier="rising"] { color: #1d9bf0; background: rgba(29, 155, 240, .1); }
-[data-xfc-velocity][data-tier="viral"] { color: #e06a16; background: rgba(224, 106, 22, .12); }
+[data-xfc-velocity][data-tier="rising"] { color: #1d9bf0; }
+[data-xfc-velocity][data-tier="viral"] { color: #e06a16; background: rgba(224, 106, 22, .08); }
+/* X 用 column 容器包住 @handle，改成一行才能把徽章摆在账号右边而不是下一行。 */
+[data-xfc-velocity-line] {
+  flex-direction: row !important;
+  align-items: center !important;
+}

@@ -21,7 +21,7 @@ class PackageTests(unittest.TestCase):
                 "extension/manifest.json", "extension/bridge.js", "extension/content.js",
                 "extension/velocity.js", "extension/content.css", "extension/translation.js", "README.md", "LICENSE", "PRIVACY.md", "docs/preview.svg",
                 "extension/translation-background.js", "extension/translation-options.html", "extension/translation-options.js", "extension/translation-options.css",
-                "extension/settings.js", "extension/follow.js", "extension/popup.html", "extension/popup.js", "extension/popup.css",
+                "extension/filter-rules.js", "extension/filter.js", "extension/filter-options.html", "extension/filter-options.js", "extension/settings.js", "extension/follow.js", "extension/popup.html", "extension/popup.js", "extension/popup.css",
                 "extension/icons/icon16.png", "extension/icons/icon32.png",
                 "extension/icons/icon48.png", "extension/icons/icon128.png",
             })
@@ -42,7 +42,7 @@ class PackageTests(unittest.TestCase):
         output = packaging.build(store=True)
         with zipfile.ZipFile(output) as archive:
             names = set(archive.namelist())
-            self.assertEqual(names, {"manifest.json", "bridge.js", "content.js", "velocity.js", "content.css", "translation.js", "translation-background.js", "translation-options.html", "translation-options.js", "translation-options.css", "settings.js", "follow.js", "popup.html", "popup.js", "popup.css",
+            self.assertEqual(names, {"manifest.json", "bridge.js", "content.js", "velocity.js", "content.css", "translation.js", "translation-background.js", "translation-options.html", "translation-options.js", "translation-options.css", "filter-rules.js", "filter.js", "filter-options.html", "filter-options.js", "settings.js", "follow.js", "popup.html", "popup.js", "popup.css",
                                     "icons/icon16.png", "icons/icon32.png", "icons/icon48.png", "icons/icon128.png",
                                     "LICENSE", "PRIVACY.md"})
             manifest = json.loads(archive.read("manifest.json"))

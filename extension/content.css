@@ -204,3 +204,11 @@ html[data-xfc-hide-left-sidebar="true"] header[role="banner"]:has(nav[role="navi
 }
 [data-xfc-velocity][data-tier="rising"] { color: #1d9bf0; background: rgba(29, 155, 240, .1); }
 [data-xfc-velocity][data-tier="viral"] { color: #e06a16; background: rgba(224, 106, 22, .12); }
+
+/* A reversible direct-child collapse preserves X's React-owned nodes. */
+article[data-xfc-filtered="true"] > :not([data-xfc-filter-notice]) { display: none !important; }
+[data-xfc-filter-notice] { padding: 16px; margin: 8px; border: 1px solid #8899a6; border-radius: 12px; color: inherit; font: 14px/1.5 system-ui, sans-serif; overflow-wrap: anywhere; }
+[data-xfc-filter-notice] p { margin: 0 0 8px; }
+[data-xfc-filter-notice] [role="status"] { font-size: 12px; }
+[data-xfc-filter-notice] button { background: transparent; color: inherit; border: 1px solid #8899a6; border-radius: 16px; padding: 6px 12px; margin: 4px 8px 0 0; cursor: pointer; font: inherit; }
+[data-xfc-filter-notice] button:focus-visible { outline: 2px solid #1d9bf0; outline-offset: 2px; }

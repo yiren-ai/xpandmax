@@ -27,7 +27,7 @@ const check = (name, evidence) => report.checks.push({ name, evidence, status: '
 async function launch() {
   const extension = path.join(root, 'extension');
   context = await chromium.launchPersistentContext(profile, {
-    channel: 'chromium', headless: !live, viewport: { width: 1100, height: 850 },
+    channel: 'chromium', ...(process.env.XPANDMAX_TEST_BROWSER_EXECUTABLE && !live ? { executablePath: process.env.XPANDMAX_TEST_BROWSER_EXECUTABLE } : {}), headless: !live, viewport: { width: 1100, height: 850 },
     args: [`--disable-extensions-except=${extension}`, `--load-extension=${extension}`]
   });
   const worker = context.serviceWorkers()[0] || await context.waitForEvent('serviceworker', { timeout: 15000 });
@@ -83,6 +83,7 @@ try {
     const unexpected = [];
     await context.route('**/*', async route => {
       const requestURL = new URL(route.request().url());
+      if (requestURL.origin === 'https://x.com' && requestURL.pathname === '/filter-fixture') return route.fulfill({ contentType: 'text/html', body: await fs.readFile(path.join(root, 'tests/browser/filter-fixture.html'), 'utf8') });
       if (requestURL.origin === 'https://x.com' && requestURL.pathname === '/home') return route.fulfill({ contentType: 'text/html', body: html });
       if (requestURL.origin === 'https://x.com' && requestURL.pathname === '/i/api/graphql/fixture/HomeTimeline') return route.fulfill({ contentType: 'application/json', body: JSON.stringify(payload) });
       if (requestURL.protocol === 'chrome-extension:') return route.continue();
@@ -123,6 +124,74 @@ try {
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
     await page.screenshot({ path: path.join(output, 'narrow.png') });
     check('narrow-layout', '390px viewport has no horizontal overflow');
+    const filterPage = await context.newPage();
+    filterPage.on('pageerror', error => errors.push(error.message));
+    await filterPage.goto('https://x.com/filter-fixture');
+    const options = await context.newPage();
+    await options.goto(`chrome-extension://${id}/filter-options.html`);
+    await popup.reload();
+    assert.equal(await popup.locator('#filter-enabled').isChecked(), false);
+    assert.equal(await filterPage.locator('[data-xfc-filter-notice]').count(), 0);
+    assert.equal(await filterPage.locator('[data-testid="tweetText"]').isVisible(), true);
+    check('filter-default-off', 'Fresh installations preserve the existing timeline until explicitly enabled');
+    await popup.locator('#filter-enabled').check();
+    await popup.reload();
+    assert.equal(await popup.locator('#filter-enabled').isChecked(), true);
+    const notice = filterPage.locator('[data-xfc-filter-notice]');
+    await notice.waitFor();
+    assert.equal(await filterPage.locator('[data-testid="tweetText"]').isVisible(), false);
+    await filterPage.screenshot({ path: path.join(output, 'filter-collapsed.png') });
+    await notice.getByRole('button', { name: '展开内容', exact: true }).click();
+    await filterPage.locator('[data-testid="tweetText"]').waitFor({ state: 'visible' });
+    assert.equal(await filterPage.locator('[data-testid="tweetText"]').isVisible(), true);
+    await notice.getByRole('button', { name: '重新折叠' }).click();
+    await filterPage.locator('[data-testid="tweetText"]').waitFor({ state: 'hidden' });
+    assert.equal(await filterPage.locator('[data-testid="tweetText"]').isVisible(), false);
+    check('filter-local-collapse-and-expand', 'Enabling folds locally with a reason; expanding restores the original content');
+    assert.equal(await options.locator('.rule-row').count(), 13);
+    const firstRule = await options.locator('.rule-row input').first().inputValue();
+    await options.locator('.rule-row input').first().fill('误修改');
+    await options.locator('.rule-row').nth(1).getByRole('button', { name: '删除' }).click();
+    await options.getByRole('button', { name: '恢复默认', exact: true }).click();
+    assert.equal(await options.locator('.rule-row').count(), 13);
+    assert.equal(await options.locator('.rule-row input').first().inputValue(), firstRule);
+    await options.locator('#new-keyword').fill('自定义推广');
+    await options.getByRole('button', { name: '添加关键词', exact: true }).click();
+    await options.getByRole('button', { name: '保存屏蔽设置' }).click();
+    await options.reload();
+    assert.equal(await options.locator('.rule-row').count(), 14);
+    assert.equal(await options.locator('.rule-row input').last().inputValue(), '自定义推广');
+    check('filter-edit-and-restore-defaults', 'Individual edits/deletes are restored with original text; a separately added keyword persists');
+    await options.locator('#filterWhitelist').fill('@fixture_filter');
+    await options.locator('#filterBlacklist').fill('@fixture_filter');
+    await options.getByRole('button', { name: '保存屏蔽设置' }).click();
+    await options.getByRole('status').filter({ hasText: /请刷新 X 页面/ }).waitFor();
+    assert.equal(await filterPage.locator('[data-xfc-filter-notice]').count(), 1);
+    await filterPage.reload();
+    await filterPage.waitForFunction(() => !document.querySelector('[data-xfc-filter-notice]'));
+    await filterPage.waitForTimeout(300);
+    assert.equal(await filterPage.locator('[data-xfc-filter-notice]').count(), 0);
+    await options.reload();
+    assert.equal(await options.locator('#filterWhitelist').inputValue(), 'fixture_filter');
+    assert.equal(await options.locator('#filterBlacklist').inputValue(), 'fixture_filter');
+    check('filter-whitelist-refresh-and-priority', 'Independent account lists persist; changes take effect after reload and whitelist wins conflicts');
+    await options.locator('#filterWhitelist').fill('');
+    while (await options.locator('.rule-row').count()) await options.locator('.rule-row').first().getByRole('button', { name: '删除' }).click();
+    await options.getByRole('button', { name: '保存屏蔽设置' }).click();
+    await options.reload();
+    assert.equal(await options.locator('.rule-row').count(), 0);
+    await filterPage.reload();
+    await filterPage.locator('[data-xfc-filter-notice]').filter({ hasText: /黑名单账号/ }).waitFor();
+    check('filter-blacklist-without-content-rules', 'An empty rule list remains empty after reload; blacklist folds the account without keyword matches, entirely locally');
+    await options.getByRole('button', { name: '恢复默认', exact: true }).click();
+    await options.locator('#filterWhitelist').fill('@trusted_example');
+    await options.getByRole('button', { name: '保存屏蔽设置' }).click();
+    await options.screenshot({ path: path.join(output, 'filter-settings.png'), fullPage: true });
+    await popup.locator('#filter-enabled').uncheck();
+    await popup.screenshot({ path: path.join(output, 'popup.png'), fullPage: true });
+    await filterPage.waitForFunction(() => !document.querySelector('[data-xfc-filter-notice]'));
+    assert.equal(await filterPage.locator('[data-testid="tweetText"]').isVisible(), true);
+    check('filter-master-switch-restores-blacklist', 'Disabling restores even a blacklisted account without changing account relationships');
     assert.deepEqual(errors, []); assert.deepEqual(unexpected, []);
     check('no-page-errors-or-extra-requests', 'No unexpected request left the synthetic fixture');
   }

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>XpandMax 内容屏蔽</title>
+<link rel="stylesheet" href="popup.css">
+<script src="filter-rules.js" defer></script><script src="filter-options.js" defer></script>
+<style>
+body{width:auto;max-width:820px;margin:24px auto;padding:20px}h2{font-size:16px;margin:28px 0 12px}textarea{display:block;box-sizing:border-box;width:100%;min-height:110px;margin:8px 0 16px;font:14px/1.5 system-ui}button,select{font:inherit;padding:6px 10px}button{cursor:pointer}label{display:block}input[type=checkbox]{appearance:auto;width:18px;height:18px;vertical-align:middle}input::before{display:none}p{overflow-wrap:anywhere}input[type=text]{appearance:auto;box-sizing:border-box;width:100%;height:auto;border:1px solid #8899a6;border-radius:6px;padding:9px;background:transparent;color:inherit;font:14px/1.5 system-ui;cursor:text}.rule-row{display:grid;grid-template-columns:80px minmax(0,1fr) auto;gap:8px;align-items:center;margin-bottom:8px}.rule-row select{min-width:0}.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.toolbar input{flex:1 1 200px}#status{position:sticky;bottom:0;background:light-dark(#fff,#16181c);padding:12px 0}button:focus-visible{outline:2px solid #1d9bf0;outline-offset:2px}.accounts{display:grid;grid-template-columns:1fr 1fr;gap:20px}@media(max-width:600px){.accounts{grid-template-columns:1fr}.rule-row{grid-template-columns:72px minmax(0,1fr) auto}.rule-row button{padding:6px}}
+</style>
+</head>
+<body>
+<h1>本地内容屏蔽</h1>
+<p>内容屏蔽默认关闭，可在插件弹窗直接开启；开启后仅在本机折叠命中正文或作者简介规则的内容，并显示原因，随时可以展开查看。</p>
+<p>规则可能误伤新闻、科普、正常社交和反诈内容，不识别纯图片。黑白名单只影响本地展示，不改变 X 的关注或屏蔽关系。</p>
+<form id="filter-settings">
+<h2>屏蔽规则 · <span id="rule-count">0</span></h2>
+<p>统一管理，不区分类别。每条可编辑或删除；最多 200 条，每条最多 300 字符。关键词按文字匹配，正则支持分组、或、字符组、点号、? 和最多 40 次的有限重复。清空列表并保存后，不再按内容匹配。</p>
+<div id="rule-list"></div>
+<div class="toolbar">
+<label for="new-keyword">新增关键词</label><input id="new-keyword" type="text" maxlength="300" placeholder="输入一个关键词，例如某个推广用语" disabled>
+<button id="add-keyword" type="button" disabled>添加关键词</button>
+<button id="restore-defaults" type="button" disabled>恢复默认</button>
+</div>
+<small>恢复默认只还原规则文字和列表，不改变开关、黑名单或白名单；点击保存后生效。可将新增行的类型切换为正则。</small>
+<div class="accounts">
+<section><h2>白名单</h2><label for="filterWhitelist">这些账号不在本机折叠</label><textarea id="filterWhitelist" maxlength="17000" placeholder="@example_account" disabled></textarea></section>
+<section><h2>黑名单</h2><label for="filterBlacklist">这些账号的内容在本机直接折叠</label><textarea id="filterBlacklist" maxlength="17000" placeholder="@another_account" disabled></textarea></section>
+</div>
+<p>两份名单分开保存，每行一个 @账号，也可用逗号分隔；各最多 1,000 个。请输入用户名，不填显示名称或网址。白名单优先；名单修改保存后，刷新 X 页面生效。</p>
+<button id="save-filter" type="submit" disabled>保存屏蔽设置</button>
+</form>
+<p id="status" role="status" aria-live="polite">正在读取…</p>
+<p>所有匹配均在本地完成，不查询额外账号、不调用外部识别服务。规则与名单保存在本机，不记录推文正文或简介。</p>
+</body></html>

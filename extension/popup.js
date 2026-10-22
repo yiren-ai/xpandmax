@@ -1,6 +1,7 @@
 (() => {
   'use strict';
   const controls = [
+    { key: 'filterEnabled', id: 'filter-enabled', label: '本地内容屏蔽', defaultValue: false },
     { key: 'showTweetVelocity', id: 'show-tweet-velocity', label: '帖子流速', defaultValue: true },
     { key: 'hideNotificationCount', id: 'hide-notification-count', label: '通知数字', defaultValue: true },
     { key: 'hideLeftSidebar', id: 'hide-left-sidebar', label: '左侧导航', defaultValue: false },
@@ -41,7 +42,7 @@
             status.textContent = '设置未保存，请重试';
           } else {
             saved = next;
-            status.textContent = key === 'showTweetVelocity' ? `${saved ? '已显示' : '已关闭'}帖子流速` : `${saved ? '已隐藏' : '已恢复显示'}${label}`;
+            status.textContent = key === 'filterEnabled' ? `${saved ? '已开启' : '已关闭'}本地内容屏蔽` : key === 'showTweetVelocity' ? `${saved ? '已显示' : '已关闭'}帖子流速` : `${saved ? '已隐藏' : '已恢复显示'}${label}`;
           }
           toggle.disabled = false;
         });

@@ -42,3 +42,11 @@ XpandMax 在浏览器本地处理 X 页面已经收到的数据。默认使用�
 ## 问题反馈
 
 请通过项目 Issues 反馈问题。提交截图、日志或示例前，请自行移除邮箱、私信、登录信息和其他个人数据。通常只需说明浏览器版本、页面类型、复现步骤以及脱敏后的界面结构。
+
+## 本地内容屏蔽（首版） / Local content folding
+
+内容屏蔽总开关默认关闭，由用户主动开启。匹配当前页面已收到的推文正文与作者原始简介，在浏览器本机折叠内容并展示原因，可随时展开；黑白名单仅影响本地展示，白名单优先，不改变 X 的关注或屏蔽关系。
+
+`chrome.storage.local` 另保存总开关、可编辑规则和独立的账号黑白名单，不保存正文、简介或浏览记录。不新增权限、后台执行模块、外部识别服务或额外账号查询；现有翻译功能的数据处理方式不变。此版本不包含自动拉黑，也不读取或存储拉黑操作记录。
+
+Local content folding is off by default and must be enabled by the user. Rules match text and bios already present in the page. Local storage holds the master switch, editable rules and separate display-only allowlists and blocklists. The allowlist takes priority. Folding is reversible and does not change account relationships. No additional permissions, background execution module, external classification service, account query, automatic account blocking or action history is introduced. Existing translation behavior remains unchanged.

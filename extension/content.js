@@ -20,6 +20,8 @@
     return profile;
   }
 
+  window.xpandmaxProfiles = { get: profileData };
+
   function pageTheme() {
     const color = getComputedStyle(document.body || document.documentElement).backgroundColor.match(/[\d.]+/g);
     return color && Number(color[0]) + Number(color[1]) + Number(color[2]) < 384

@@ -10,7 +10,7 @@ FILES = [
     "extension/manifest.json", "extension/bridge.js", "extension/content.js",
     "extension/velocity.js", "extension/content.css", "extension/translation.js", "README.md", "LICENSE", "PRIVACY.md", "docs/preview.svg",
     "extension/translation-background.js", "extension/translation-options.html", "extension/translation-options.js", "extension/translation-options.css",
-    "extension/settings.js", "extension/follow.js", "extension/popup.html", "extension/popup.js", "extension/popup.css",
+    "extension/filter-rules.js", "extension/filter.js", "extension/filter-options.html", "extension/filter-options.js", "extension/settings.js", "extension/follow.js", "extension/popup.html", "extension/popup.js", "extension/popup.css",
     "extension/icons/icon16.png", "extension/icons/icon32.png",
     "extension/icons/icon48.png", "extension/icons/icon128.png",
 ]

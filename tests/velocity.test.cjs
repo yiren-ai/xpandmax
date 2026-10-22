@@ -191,3 +191,47 @@ test('detail header without a timestamp puts the badge on the account handle lin
     assert.equal(line.getAttribute('data-xfc-velocity-line'), null, '徽章移除后标记也要撤掉');
   } finally { t.dom.window.close(); }
 });
+
+test('reused author row with a focused badge switches to the new tweet and keeps focus', async () => {
+  const t = setup(author('1'));
+  try {
+    send(t.w, [record('1', { views: 100 })]);
+    await tick();
+    const badge = t.w.document.querySelector('[data-xfc-velocity]');
+    assert.equal(badge.textContent, '≈100/小时');
+    badge.focus();
+    assert.equal(t.w.document.activeElement, badge, '焦点应落在徽章上');
+
+    // 虚拟列表把同一行复用给另一条帖：时间链接改成帖子 2，再送入帖子 2 的数据。
+    t.w.document.querySelector('a').href = '/demo/status/2';
+    send(t.w, [record('2', { views: 9000 })]);
+    await tick();
+
+    assert.equal(badge.textContent, '≈9,000/小时', '帖子变了就不能继续显示旧读数');
+    assert.match(badge.title, /浏览：9,000/, 'title 也要换成新帖');
+    assert.doesNotMatch(badge.title, /浏览：100/);
+    assert.equal(t.w.document.activeElement, badge, '更新读数不应夺走焦点');
+  } finally { t.dom.window.close(); }
+});
+
+test('focus freeze still holds while the badge keeps showing the same tweet', async () => {
+  const t = setup(author('1'));
+  try {
+    send(t.w, [record('1', { views: 100 })]);
+    await tick();
+    const badge = t.w.document.querySelector('[data-xfc-velocity]');
+    badge.focus();
+
+    send(t.w, [record('1', { views: 5000 })]);
+    await tick();
+
+    assert.equal(badge.textContent, '≈100/小时', '同一条帖在聚焦时仍保持冻结');
+    assert.match(badge.title, /浏览：100/);
+
+    // 冻结只是暂停：失焦后遇到下一次渲染就应补上最新读数。
+    badge.blur();
+    t.w.dispatchEvent(new t.w.PopStateEvent('popstate'));
+    await tick();
+    assert.equal(badge.textContent, '≈5,000/小时', '失焦后的下一次渲染应更新到最新读数');
+  } finally { t.dom.window.close(); }
+});

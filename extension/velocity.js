@@ -156,6 +156,9 @@
         if (anchor.mode === 'append') anchor.node.append(badge);
         else anchor.node.after(badge);
       }
+      // 虚拟列表会把这个节点复用给另一条帖，先把旧帖子 ID 记下来做比较：
+      // 冻结（悬停/焦点）只能保护同一条帖的读数。
+      const sameTweet = badge.dataset.xfcTweetId === id;
       badge.dataset.xfcTweetId = id;
       // 用观测时刻算，不用当前时刻：否则分母每秒都在长，数字永远在往下淌。
       let paint = paints.get(record);
@@ -171,7 +174,8 @@
         };
         paints.set(record, paint);
       }
-      const frozen = badge.matches(':hover, :focus, :focus-within') || badge === document.activeElement;
+      const frozen = sameTweet
+        && (badge.matches(':hover, :focus, :focus-within') || badge === document.activeElement);
       if (!frozen) {
         if (badge.textContent !== paint.text) badge.textContent = paint.text;
         if (badge.title !== paint.title) { badge.title = paint.title; badge.setAttribute('aria-label', paint.title); }

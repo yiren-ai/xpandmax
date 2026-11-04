@@ -5,7 +5,7 @@
 
   function update(handle, status, message = '') {
     states.delete(handle);
-    states.set(handle, { status, message });
+    states.set(handle, { status, message, at: Date.now() });
     while (states.size > 100) states.delete(states.keys().next().value);
     window.dispatchEvent(new Event('xpandmax:followstate'));
   }
@@ -114,5 +114,17 @@
     }
   }
 
-  window.xpandmaxFollow = { start, state: handle => states.get(handle) };
+  function sync(handle, fields) {
+    const state = states.get(handle);
+    if (!state || state.status === 'pending') return;
+    const fresh = (key, value) => fields[key]?.at >= state.at && fields[key].value === value;
+    if ((state.status === 'success' && fresh('following', false))
+      || (state.status === 'requested' && (fresh('followRequestSent', false) || fresh('following', true)))
+      || (state.status === 'error' && (fresh('following', true) || fresh('followRequestSent', true)))
+      || fresh('followBlocked', true)) {
+      states.delete(handle);
+    }
+  }
+
+  window.xpandmaxFollow = { start, sync, state: handle => states.get(handle) };
 })();

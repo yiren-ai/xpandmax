@@ -1,6 +1,7 @@
 (() => {
   'use strict';
   const CHANNEL = 'x-follower-count-v1';
+  const AUTHOR = '[data-testid="User-Name"], [data-testid="UserName"]';
   const TTL = 30 * 60 * 1000;
   const defaults = { showTweetVelocity: true, velocityRisingThreshold: 1000, velocityViralThreshold: 10000 };
   let settings = { ...defaults };
@@ -64,7 +65,7 @@
     // author of the article containing that exact permalink may use the route ID.
     const article = author.closest('article');
     const route = location.pathname.match(/^\/([a-zA-Z0-9_]{1,15})\/status\/(\d+)\/?$/);
-    if (!route || !article || article.querySelector('[data-testid="User-Name"]') !== author) return;
+    if (!route || !article || article.querySelector(AUTHOR) !== author) return;
     const profileMatches = [...author.querySelectorAll('a[href]')].some(link => {
       try {
         const url = new URL(link.getAttribute('href'), location.href);
@@ -89,7 +90,7 @@
     const quote = author.closest('[role="link"]');
     const article = author.closest('article');
     if (!quote || !article || !article.contains(quote)) return;
-    const outer = [...article.querySelectorAll('[data-testid="User-Name"]')]
+    const outer = [...article.querySelectorAll(AUTHOR)]
       .find(row => !quote.contains(row) && row.closest('article') === article && baseId(row));
     const quotedId = outer && tweets.get(baseId(outer))?.quotedId;
     const record = tweets.get(quotedId);
@@ -101,11 +102,11 @@
     const now = Date.now();
     for (const [id, record] of tweets) if (now - record.observedAt >= TTL) tweets.delete(id);
     const used = new Set();
-    if (settings.showTweetVelocity) for (const author of document.querySelectorAll('[data-testid="User-Name"]')) {
+    if (settings.showTweetVelocity) for (const author of document.querySelectorAll(AUTHOR)) {
       const id = tweetId(author);
       const record = tweets.get(id);
       if (!record || !record.valid) continue;
-      let badge = [...author.querySelectorAll('[data-xfc-velocity]')].find(node => node.closest('[data-testid="User-Name"]') === author);
+      let badge = [...author.querySelectorAll('[data-xfc-velocity]')].find(node => node.closest(AUTHOR) === author);
       if (!badge) {
         badge = document.createElement('span');
         badge.setAttribute('data-xfc-velocity', '');

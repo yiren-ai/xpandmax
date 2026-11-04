@@ -296,6 +296,7 @@
       if (!user || typeof user.handle !== 'string' || !/^[a-zA-Z0-9_]{1,15}$/.test(user.handle)) continue;
       const handle = user.handle.toLowerCase();
       const cached = counts.get(handle) || {};
+      const accepted = {};
       let updated = false;
       const now = Date.now();
       for (const field of FIELDS) {
@@ -307,11 +308,13 @@
         const at = user.observedAt?.[field] ?? now;
         if (!Number.isFinite(at) || at > now || now - at >= TTL || (cached[field] && at < cached[field].at)) continue;
         cached[field] = { value, at };
+        accepted[field] = cached[field];
         updated = true;
       }
       if (!updated) continue;
       counts.delete(handle);
       counts.set(handle, cached);
+      window.xpandmaxFollow?.sync?.(handle, accepted);
     }
     while (counts.size > 5000) counts.delete(counts.keys().next().value);
     window.dispatchEvent(new Event('xpandmax:profiles'));

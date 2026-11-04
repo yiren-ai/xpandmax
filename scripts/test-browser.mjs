@@ -96,6 +96,9 @@ try {
     assert.equal(await page.locator('[role="link"] [data-xfc-velocity]').getAttribute('data-tier'), 'viral');
     await page.locator('[data-xfc-inline-profile]').first().waitFor();
     check('manifest-bridge-content-isolated-world', 'Original, linkless quote, profiles and promoted filtering render through the installed extension');
+    await page.locator('[data-testid="User-Name"]').evaluateAll(nodes => nodes.forEach(node => node.setAttribute('data-testid', 'UserName')));
+    await page.waitForFunction(() => document.querySelectorAll('[data-testid="UserName"] [data-xfc-velocity]').length === 2);
+    check('alternate-author-rows', 'UserName rows retain original and linkless quote velocity badges');
     await page.screenshot({ path: path.join(output, 'desktop.png') });
     const popup = await context.newPage();
     await popup.goto(`chrome-extension://${id}/popup.html`);

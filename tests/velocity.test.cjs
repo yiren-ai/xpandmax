@@ -4,6 +4,16 @@ const fs = require('node:fs');
 const { JSDOM } = require('jsdom');
 const tick = () => new Promise(resolve => setTimeout(resolve, 40));
 const author = id => `<div data-testid="User-Name"><a href="/demo/status/${id}"><time>1h</time></a></div>`;
+
+test('UserName author rows retain velocity badges on timelines and detail pages', async () => {
+  const t = setup(`<article>${author('1').replace('User-Name', 'UserName')}</article><article><div data-testid="UserName"><a href="/demo">Main author</a></div><a href="/demo/status/2"><time>1h</time></a></article>`);
+  try {
+    t.w.history.replaceState({}, '', '/demo/status/2');
+    send(t.w, [record('1'), record('2')]);
+    await tick();
+    assert.equal(t.w.document.querySelectorAll('[data-xfc-velocity]').length, 2);
+  } finally { t.dom.window.close(); }
+});
 function setup(html = author('1'), saved = {}, late = false) {
   const dom = new JSDOM(html, { url: 'https://x.com/home', runScripts: 'outside-only', pretendToBeVisual: true });
   const w = dom.window;

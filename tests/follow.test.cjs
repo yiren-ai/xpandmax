@@ -151,3 +151,44 @@ test('桥接兼容新旧关注状态并读取原生关注结果，不读取关�
     url = 'https://x.com/i/api/1.1/favorites/create.json'; await f.w.fetch('fixture'); await tick(); assert.equal(messages.length, count);
   } finally { f.dom.window.close(); }
 });
+
+test('原生取消关注或取消申请后，旧的成功状态不会锁死关注按钮', async () => {
+  for (const requested of [false, true]) {
+    const f = setup();
+    try {
+      await f.ready();
+      f.nativeMenu('Follow @Alice', () => {
+        if (requested) f.state.followRequestSent = true;
+        else f.state.following = true;
+        f.send([{ handle: 'Alice', ...f.state }]);
+      });
+      await f.start(); await tick();
+      assert.equal(f.article.querySelector('[data-xfc-follow]').disabled, true);
+      // Neither unrelated profile updates nor old relationship replays undo a result.
+      f.send([{ handle: 'Alice', count: 12501 }]);
+      f.send([{ handle: 'Alice', following: false, followRequestSent: false,
+        observedAt: { following: Date.now() - 1000, followRequestSent: Date.now() - 1000 } }]);
+      await tick();
+      assert.equal(f.article.querySelector('[data-xfc-follow]').disabled, true);
+      f.state.following = false;
+      f.state.followRequestSent = false;
+      f.send([{ handle: 'Alice', ...f.state }]);
+      await tick();
+      const button = f.article.querySelector('[data-xfc-follow]');
+      assert.equal(button.disabled, false);
+      assert.equal(button.textContent, '关注');
+    } finally { f.dom.window.close(); }
+  }
+});
+
+test('关注报错后通过原生界面成功关注，不再保留重试按钮', async () => {
+  const f = setup();
+  try {
+    await f.ready(); f.nativeMenu('关注 @Bob');
+    await f.start(); await tick();
+    assert.equal(f.article.querySelector('[data-xfc-follow]').textContent, '重试关注');
+    f.send([{ handle: 'Alice', following: true }]);
+    await tick();
+    assert.equal(f.article.querySelector('[data-xfc-follow]'), null);
+  } finally { f.dom.window.close(); }
+});
